@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Machine/Equipment Fault Report</title>
+  
+  <!-- My CSS link -->
+  <link rel="stylesheet" href="css/styles.css" />
+
+</head>
+<body>
+  <div class="card">
+    <h1>Machine/Equipment Fault Report</h1>
+
+    <div class="meta">
+      <div class="kv">
+        <div><b>Version</b><span id="vText">-</span></div>
+        <div><b>Machine ID</b><span id="midText">-</span></div>
+        <div><b>Machine Name</b><span id="nameText">-</span></div>
+        <div><b>Location</b><span id="locText">-</span></div>
+      </div>
+    </div>
+
+    <form id="form">
+      <div class="row">
+        <label for="employeeName">Employee Name</label>
+        <textarea id="employeeName" placeholder="e.g. Ahmad" required></textarea>
+      </div>
+
+      <div class="row">
+        <label for="problemDescription">Problem Description</label>
+        <textarea id="problemDescription" placeholder="Describe the problem" required></textarea>
+      </div>
+
+      <button class="btn" id="submitBtn" type="submit">Submit Report</button>
+    </form>
+
+    <div class="status" id="status"></div>
+    <div class="small">Scan QR again if machine details show “-”.</div>
+  </div>
+
+  <script type="module" src="js/report.js"></script>
+</body>
+</html>

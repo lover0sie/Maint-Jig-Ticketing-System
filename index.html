@@ -24,19 +24,37 @@
 
     <div class="small"><i>Scan QR again if machine details show “-”.</i></div>
 
-    <form id="form">
-      <div class="row">
-        <label for="employeeName">Employee Name</label>
-        <textarea id="employeeName" placeholder="e.g. Ahmad" required></textarea>
-      </div>
+<!-- Alert banner -->
+<div class="alert" id="alert" role="alert" aria-live="polite"></div>
 
-      <div class="row">
-        <label for="problemDescription">Problem Description</label>
-        <textarea id="problemDescription" placeholder="Describe the problem" required></textarea>
+  <form id="form" novalidate>
+        <div class="row">
+      <label for="employeeName">Employee Name</label>
+      <input 
+        id="employeeName" 
+        placeholder="e.g. Ahmad" 
+        maxlength="50"
+        autocomplete="name"
+      />
+      <div class="help">
+        Max 50 characters
       </div>
+    </div>
 
-      <button class="btn" id="submitBtn" type="submit">Submit Report</button>
-    </form>
+    <div class="row">
+      <label for="problemDescription">Problem Description</label>
+      <textarea 
+        id="problemDescription" 
+        placeholder="Describe the problem"
+        maxlength="500"
+      ></textarea>
+      <div class="help">
+        <span id="charCount">0</span>/500 characters
+      </div>
+    </div>
+
+    <button class="btn" id="submitBtn" type="submit">Submit Report</button>
+  </form>
 
     <div class="status" id="status"></div>
     

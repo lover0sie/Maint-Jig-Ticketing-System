@@ -33,17 +33,41 @@ console.log("report.js loaded once check:", location.href);
     el("nameText").textContent = machineName || "-";
     el("locText").textContent = locationName || "-";
 
-    const statusEl = el("status");
     const submitBtn = el("submitBtn");
 
-    function setStatus(msg, type) {
-      statusEl.textContent = msg;
-      statusEl.className = "status " + (type === "ok" ? "ok" : type === "err" ? "err" : "");
+    const alertEl = el("alert");
+
+    const problemField = el("problemDescription");
+    const charCount = el("charCount");
+
+    problemField.addEventListener("input", () => {
+      charCount.textContent = problemField.value.length;
+    });
+
+    function showAlert(msg, kind = "warn") {
+      alertEl.textContent = msg;
+      alertEl.className = `alert show ${kind}`; // kind: ok | err | warn
+    }
+
+    function clearAlert() {
+      alertEl.textContent = "";
+      alertEl.className = "alert";
     }
 
     function padSeq(num, size = 3) {
       return String(num).padStart(size, "0");
     }
+    // ---------- Field changing if nearing limit -------------///
+    problemField.addEventListener("input", () => {
+    const len = problemField.value.length;
+    charCount.textContent = len;
+
+    if (len > 450) {
+      charCount.style.color = "#b00020"; // red near limit
+    } else {
+      charCount.style.color = "";
+    }
+  });
 
     // ------------- Ticket creation (sequence + timestamp) -------------
     function getTodayDate() {
@@ -103,71 +127,71 @@ console.log("report.js loaded once check:", location.href);
 
     // ------------- Form submit -------------
 
-    let submitInFlight = false;
+  let submitInFlight = false;
 
-    el("form").addEventListener("submit", async (e) => {
-      e.preventDefault();
+  el("form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (submitInFlight) return;
+    submitInFlight = true;
+    submitBtn.disabled = true;
 
-      if (submitInFlight) return;
-      submitInFlight = true;
-      submitBtn.disabled = true;
+    try {
+      clearAlert();
 
-
+      // validations INSIDE try so finally always runs
       if (!machineId || !machineName || !locationName) {
-        setStatus("Missing machine details. Please scan the QR code again.", "err");
+        showAlert("Missing machine details. Please scan the QR code again.", "err");
         return;
       }
 
       const employeeName = el("employeeName").value.trim();
       const problemDescription = el("problemDescription").value.trim();
 
-      if (!employeeName || !problemDescription) {
-        setStatus("Please fill Employee Name and Problem Description.", "err");
+      if (!employeeName) {
+        showAlert("Please fill in Employee Name.", "err");
+        el("employeeName").focus();
+        return;
+      }
+      if (!problemDescription) {
+        showAlert("Please describe the problem.", "err");
+        el("problemDescription").focus();
         return;
       }
 
-      submitBtn.disabled = true;
-      setStatus("Submitting…", "");
+      showAlert("Submitting…", "warn");
 
+      const { ticketId } = await createTicket({ employeeName, problemDescription });
+
+      // Telegram optional
       try {
-        const { ticketId } = await createTicket({ employeeName, problemDescription });
-
-        // try Telegram but don't fail submit if Telegram fails
-        try {
-          await sendTelegram({
-            ticketId,
-            machineId,
-            machineName,               
-            location: locationName,
-            employeeName,
-            problemDescription
-          });
-        } catch (e) {
-          console.warn("Telegram failed:", e);
-        }
-
-        //  clear BEFORE replace the card
-        el("problemDescription").value = "";
-
-        setStatus(`Successfully submitted. Ticket created: ${ticketId}`, "ok");
-
-        document.querySelector(".card").innerHTML = `
-          <h1> Report Submitted</h1>
-          <p style="font-size:18px;margin-top:10px;">
-            Ticket: <b>${ticketId}</b>
-          </p>
-          <p>Please inform maintenance if urgent.</p>
-          <button class="btn" onclick="location.reload()">Submit Another</button>
-        `;
-                
-      } catch (err) {
-        console.error(err);
-        setStatus("Submit failed. Check internet / Firebase rules / config.", "err");
-      } finally {
-        submitInFlight = false;
-        submitBtn.disabled = false;
+        await sendTelegram({ ticketId, machineId, machineName, location: locationName, employeeName, problemDescription });
+      } catch (tgErr) {
+        console.warn("Telegram failed:", tgErr);
+        // keep success, optionally warn:
+        // showAlert(`Ticket created: ${ticketId} (Telegram failed)`, "warn");
       }
-    });
+
+      showAlert(`Successfully submitted. Ticket created: ${ticketId}`, "ok");
+
+      // optional clear before replace
+      el("problemDescription").value = "";
+
+      document.querySelector(".card").innerHTML = `
+        <h1>Report Submitted</h1>
+        <p style="font-size:18px;margin-top:10px;">
+          Ticket: <b>${ticketId}</b>
+        </p>
+        <p>Please inform maintenance if urgent.</p>
+        <button class="btn" onclick="location.reload()">Submit Another</button>
+      `;
+    } catch (err) {
+      console.error(err);
+      showAlert("Submit failed. Check internet / Firebase rules / config.", "err");
+    } finally {
+      submitInFlight = false;
+      submitBtn.disabled = false;
+    }
+  });
 
 // ------------- Telegram (TEST ONLY) -------------
 async function sendTelegram({ ticketId, machineId, machineName, location, employeeName, problemDescription }) {

@@ -41,9 +41,8 @@ console.log("report.js loaded once check:", location.href);
       statusEl.className = "status " + (type === "ok" ? "ok" : type === "err" ? "err" : "");
     }
 
-    function pad(num, size = 6) {
-      const s = String(num);
-      return s.length >= size ? s : "0".repeat(size - s.length) + s;
+    function padSeq(num, size = 3) {
+      return String(num).padStart(size, "0");
     }
 
     // ------------- Ticket creation (sequence + timestamp) -------------
@@ -69,7 +68,7 @@ console.log("report.js loaded once check:", location.href);
           next = snap.data().next ?? 1;
         }
 
-        const seq = pad(next); // 001
+        const seq = padSeq(next); // 001
         const ticketId = `MCH-${today}-${seq}`;
 
         // update counter

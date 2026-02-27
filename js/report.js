@@ -122,13 +122,23 @@
       try {
         const { ticketId } = await createTicket({ employeeName, problemDescription });
 
-        await sendTelegram({
-          ticketId,
-          machineId,
-          location: locationName,
-          employeeName,
-          problemDescription
-        });
+        // try Telegram but don't fail submit if Telegram fails
+        try {
+          await sendTelegram({
+            ticketId,
+            machineId,
+            machineName,               
+            location: locationName,
+            employeeName,
+            problemDescription
+          });
+        } catch (e) {
+          console.warn("Telegram failed:", e);
+        }
+
+        //  clear BEFORE replace the card
+        el("problemDescription").value = "";
+
         setStatus(`Successfully submitted. Ticket created: ${ticketId}`, "ok");
 
         document.querySelector(".card").innerHTML = `
@@ -139,9 +149,7 @@
           <p>Please inform maintenance if urgent.</p>
           <button class="btn" onclick="location.reload()">Submit Another</button>
         `;
-
-        // optional: clear problem description but keep employee
-        el("problemDescription").value = "";
+                
       } catch (err) {
         console.error(err);
         setStatus("Submit failed. Check internet / Firebase rules / config.", "err");
@@ -149,11 +157,6 @@
         submitBtn.disabled = false;
       }
     });
-
-
-function padSeq(num, size = 3) {
-  return String(num).padStart(size, "0");
-}
 
 // ------------- Telegram (TEST ONLY) -------------
 async function sendTelegram({ ticketId, machineId, machineName, location, employeeName, problemDescription }) {
@@ -235,7 +238,7 @@ el("form").addEventListener("submit", async (e) => {
       <button class="btn" onclick="location.reload()">Submit Another</button>
     `;
 
-    el("problemDescription").value = "";
+    
   } catch (err) {
     console.error(err);
     setStatus(

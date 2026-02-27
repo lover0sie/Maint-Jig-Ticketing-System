@@ -157,7 +157,7 @@ function padSeq(num, size = 3) {
 
 // ------------- Telegram (TEST ONLY) -------------
 async function sendTelegram({ ticketId, machineId, machineName, location, employeeName, problemDescription }) {
-  const BOT_TOKEN = "8241324978:AAG5IWOW5GDaxQGmbE4w8okZM_o1YvAXnvw"; // <-- replace after revoking old
+  const BOT_TOKEN = "8241324978:AAGL8f_LqUmXPtwrmxSB2v6rKx0Tuv6jVl0"; // <-- replace after revoking old
   const CHAT_ID = "-5223901778";
 
   const message =
@@ -202,9 +202,9 @@ el("form").addEventListener("submit", async (e) => {
 
   try {
     // 1) Always create the ticket first
-    ({ ticketId } = await createTicket({ employeeName, problemDescription }));
+     const { ticketId } = await createTicket({ employeeName, problemDescription });
 
-    // 2) Try Telegram, but don't fail the whole submit if Telegram fails
+    // Telegram should NOT block success UI
     try {
       await sendTelegram({
         ticketId,
@@ -212,12 +212,11 @@ el("form").addEventListener("submit", async (e) => {
         machineName,
         location: locationName,
         employeeName,
-        problemDescription,
+        problemDescription
       });
     } catch (tgErr) {
       console.warn("Telegram failed:", tgErr);
-      // show as info only
-      setStatus(`Ticket created: ${ticketId}. (Telegram notification failed)`, "err");
+      // optional: show info, but keep success
     }
 
     // UI success

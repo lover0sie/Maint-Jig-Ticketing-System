@@ -1,3 +1,6 @@
+// debug
+console.log("report.js loaded once check:", location.href);
+
 // ------------- Firebase SDK (Firestore) -------------
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
     import {
@@ -54,8 +57,8 @@
 
     async function createTicket({ employeeName, problemDescription }) {
 
-      const today = getTodayDate(); // 20260210
-      const counterRef = doc(db, "counters", today);
+      const today = getTodayDate(); // get today's date
+      const counterRef = doc(db, "counters", today); // refer to the counter database
 
       return await runTransaction(db, async (tx) => {
 
@@ -100,8 +103,16 @@
 
 
     // ------------- Form submit -------------
+
+    let submitInFlight = false;
+
     el("form").addEventListener("submit", async (e) => {
       e.preventDefault();
+
+      if (submitInFlight) return;
+      submitInFlight = true;
+      submitBtn.disabled = true;
+
 
       if (!machineId || !machineName || !locationName) {
         setStatus("Missing machine details. Please scan the QR code again.", "err");
@@ -154,6 +165,7 @@
         console.error(err);
         setStatus("Submit failed. Check internet / Firebase rules / config.", "err");
       } finally {
+        submitInFlight = false;
         submitBtn.disabled = false;
       }
     });

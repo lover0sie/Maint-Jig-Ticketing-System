@@ -149,79 +149,10 @@
         submitBtn.disabled = false;
       }
     });
-    
-async function sendTelegram(ticket) {
-  const BOT_TOKEN = "8241324978:AAGL8f_LqUmXPtwrmxSB2v6rKx0Tuv6jVl0";
-  const CHAT_ID = "-5223901778";
 
-  const message =
-    `🛠️ New Maintenance Ticket\n\n` +
-    `Ticket: ${ticket.ticketId}\n` +
-    `Machine: ${ticket.machineId}\n` +
-    `Location: ${ticket.location}\n` +
-    `Reported by: ${ticket.employeeName}\n` +
-    `Problem: ${ticket.problemDescription}`;
-
-  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: CHAT_ID,
-      text: message
-    })
-  });
-}
-
-// --- Helpers ---
-function getTodayDate() {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}${month}${day}`;
-}
 
 function padSeq(num, size = 3) {
   return String(num).padStart(size, "0");
-}
-
-// ------------- Ticket creation (sequence + timestamp) -------------
-async function createTicket({ employeeName, problemDescription }) {
-  const today = getTodayDate(); // 20260210
-  const counterRef = doc(db, "counters", today);
-
-  return await runTransaction(db, async (tx) => {
-    const snap = await tx.get(counterRef);
-    let next = 1;
-
-    if (snap.exists()) next = snap.data().next ?? 1;
-
-    const seq = padSeq(next); // 001
-    const ticketId = `MCH-${today}-${seq}`;
-
-    tx.set(counterRef, { next: next + 1 }, { merge: true });
-
-    const ticketRef = doc(db, "tickets", ticketId);
-    tx.set(ticketRef, {
-      ticketId,
-      sequence: next,
-      date: today,
-
-      version: version || null,
-      machine: {
-        id: machineId || null,
-        name: machineName || null,
-        location: locationName || null,
-      },
-
-      employeeName,
-      problemDescription,
-      status: "OPEN",
-      createdAt: serverTimestamp(),
-    });
-
-    return { ticketId };
-  });
 }
 
 // ------------- Telegram (TEST ONLY) -------------

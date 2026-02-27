@@ -176,7 +176,7 @@ async function sendTelegram({ ticketId, machineId, machineName, location, employ
   const CHAT_ID = "-5223901778";
 
   const message =
-    `🛠️ New Maintenance Ticket\n\n` +
+    `New Maintenance Ticket\n\n` +
     `Ticket: ${ticketId}\n` +
     `Machine: ${machineId} — ${machineName}\n` +
     `Location: ${location}\n` +
@@ -192,74 +192,3 @@ async function sendTelegram({ ticketId, machineId, machineName, location, employ
   const data = await res.json();
   if (!data.ok) throw new Error(data.description || "Telegram send failed");
 }
-
-// ------------- Form submit -------------
-el("form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  if (!machineId || !machineName || !locationName) {
-    setStatus("Missing machine details. Please scan the QR code again.", "err");
-    return;
-  }
-
-  const employeeName = el("employeeName").value.trim();
-  const problemDescription = el("problemDescription").value.trim();
-
-  if (!employeeName || !problemDescription) {
-    setStatus("Please fill Employee Name and Problem Description.", "err");
-    return;
-  }
-
-  submitBtn.disabled = true;
-  setStatus("Submitting…", "");
-
-  let ticketId = "";
-
-  try {
-    // 1) Always create the ticket first
-     const { ticketId } = await createTicket({ employeeName, problemDescription });
-
-    // Telegram should NOT block success UI
-    try {
-      await sendTelegram({
-        ticketId,
-        machineId,
-        machineName,
-        location: locationName,
-        employeeName,
-        problemDescription
-      });
-    } catch (tgErr) {
-      console.warn("Telegram failed:", tgErr);
-      // optional: show info, but keep success
-    }
-
-    // UI success
-    if (statusEl.textContent.includes("Telegram notification failed")) {
-      // keep your message already set
-    } else {
-      setStatus(`Successfully submitted. Ticket created: ${ticketId}`, "ok");
-    }
-
-    document.querySelector(".card").innerHTML = `
-      <h1>Report Submitted</h1>
-      <p style="font-size:18px;margin-top:10px;">
-        Ticket: <b>${ticketId}</b>
-      </p>
-      <p>Please inform maintenance if urgent.</p>
-      <button class="btn" onclick="location.reload()">Submit Another</button>
-    `;
-
-    
-  } catch (err) {
-    console.error(err);
-    setStatus(
-      ticketId
-        ? `Ticket created: ${ticketId}, but something else failed.`
-        : "Submit failed. Check internet / Firebase rules / config.",
-      "err"
-    );
-  } finally {
-    submitBtn.disabled = false;
-  }
-});

@@ -44,48 +44,60 @@
     }
 
     // ------------- Ticket creation (sequence + timestamp) -------------
-    async function createTicket({ employeeName, problemDescription }) {
-      const counterRef = doc(db, "counters", "tickets");
+    function getTodayDate() {
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth()+1).padStart(2,'0');
+      const day = String(d.getDate()).padStart(2,'0');
+      return `${year}${month}${day}`;
+    }
 
-      // Transaction ensures sequence is safe under concurrency
-      const result = await runTransaction(db, async (tx) => {
+    async function createTicket({ employeeName, problemDescription }) {
+
+      const today = getTodayDate(); // 20260210
+      const counterRef = doc(db, "counters", today);
+
+      return await runTransaction(db, async (tx) => {
+
         const snap = await tx.get(counterRef);
         let next = 1;
 
         if (snap.exists()) {
-          const data = snap.data();
-          next = typeof data.next === "number" ? data.next : 1;
+          next = snap.data().next ?? 1;
         }
 
-        const ticketNo = next;
-        const ticketId = `T-${pad(ticketNo)}`;
+        const seq = pad(next); // 001
+        const ticketId = `MCH-${today}-${seq}`;
 
-        // increment counter
-        tx.set(counterRef, { next: ticketNo + 1 }, { merge: true });
+        // update counter
+        tx.set(counterRef, { next: next + 1 }, { merge:true });
 
-        // store ticket doc under tickets/{ticketId}
+        // create ticket
         const ticketRef = doc(db, "tickets", ticketId);
 
         tx.set(ticketRef, {
-          ticketNo,
-          ticketId,
+          ticketId: ticketId,
+          sequence: next,
+          date: today,
+
           version: version || null,
           machine: {
             id: machineId || null,
             name: machineName || null,
             location: locationName || null
           },
+
           employeeName,
           problemDescription,
-          status: "open",
+          status: "OPEN",
+
           createdAt: serverTimestamp()
         });
 
-        return { ticketNo, ticketId };
+        return { ticketId };
       });
-
-      return result;
     }
+
 
     // ------------- Form submit -------------
     el("form").addEventListener("submit", async (e) => {
@@ -109,7 +121,24 @@
 
       try {
         const { ticketId } = await createTicket({ employeeName, problemDescription });
+
+        await sendTelegram({
+          ticketId,
+          machineId,
+          location: locationName,
+          employeeName,
+          problemDescription
+        });
         setStatus(`Successfully submitted. Ticket created: ${ticketId}`, "ok");
+
+        document.querySelector(".card").innerHTML = `
+          <h1> Report Submitted</h1>
+          <p style="font-size:18px;margin-top:10px;">
+            Ticket: <b>${ticketId}</b>
+          </p>
+          <p>Please inform maintenance if urgent.</p>
+          <button class="btn" onclick="location.reload()">Submit Another</button>
+        `;
 
         // optional: clear problem description but keep employee
         el("problemDescription").value = "";
@@ -120,3 +149,172 @@
         submitBtn.disabled = false;
       }
     });
+    
+async function sendTelegram(ticket) {
+  const BOT_TOKEN = "8241324978:AAGL8f_LqUmXPtwrmxSB2v6rKx0Tuv6jVl0";
+  const CHAT_ID = "-5223901778";
+
+  const message =
+    `🛠️ New Maintenance Ticket\n\n` +
+    `Ticket: ${ticket.ticketId}\n` +
+    `Machine: ${ticket.machineId}\n` +
+    `Location: ${ticket.location}\n` +
+    `Reported by: ${ticket.employeeName}\n` +
+    `Problem: ${ticket.problemDescription}`;
+
+  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: CHAT_ID,
+      text: message
+    })
+  });
+}
+
+// --- Helpers ---
+function getTodayDate() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}${month}${day}`;
+}
+
+function padSeq(num, size = 3) {
+  return String(num).padStart(size, "0");
+}
+
+// ------------- Ticket creation (sequence + timestamp) -------------
+async function createTicket({ employeeName, problemDescription }) {
+  const today = getTodayDate(); // 20260210
+  const counterRef = doc(db, "counters", today);
+
+  return await runTransaction(db, async (tx) => {
+    const snap = await tx.get(counterRef);
+    let next = 1;
+
+    if (snap.exists()) next = snap.data().next ?? 1;
+
+    const seq = padSeq(next); // 001
+    const ticketId = `MCH-${today}-${seq}`;
+
+    tx.set(counterRef, { next: next + 1 }, { merge: true });
+
+    const ticketRef = doc(db, "tickets", ticketId);
+    tx.set(ticketRef, {
+      ticketId,
+      sequence: next,
+      date: today,
+
+      version: version || null,
+      machine: {
+        id: machineId || null,
+        name: machineName || null,
+        location: locationName || null,
+      },
+
+      employeeName,
+      problemDescription,
+      status: "OPEN",
+      createdAt: serverTimestamp(),
+    });
+
+    return { ticketId };
+  });
+}
+
+// ------------- Telegram (TEST ONLY) -------------
+async function sendTelegram({ ticketId, machineId, machineName, location, employeeName, problemDescription }) {
+  const BOT_TOKEN = "8241324978:AAG5IWOW5GDaxQGmbE4w8okZM_o1YvAXnvw"; // <-- replace after revoking old
+  const CHAT_ID = "-5223901778";
+
+  const message =
+    `🛠️ New Maintenance Ticket\n\n` +
+    `Ticket: ${ticketId}\n` +
+    `Machine: ${machineId} — ${machineName}\n` +
+    `Location: ${location}\n` +
+    `Reported by: ${employeeName}\n` +
+    `Problem: ${problemDescription}`;
+
+  const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: CHAT_ID, text: message }),
+  });
+
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.description || "Telegram send failed");
+}
+
+// ------------- Form submit -------------
+el("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  if (!machineId || !machineName || !locationName) {
+    setStatus("Missing machine details. Please scan the QR code again.", "err");
+    return;
+  }
+
+  const employeeName = el("employeeName").value.trim();
+  const problemDescription = el("problemDescription").value.trim();
+
+  if (!employeeName || !problemDescription) {
+    setStatus("Please fill Employee Name and Problem Description.", "err");
+    return;
+  }
+
+  submitBtn.disabled = true;
+  setStatus("Submitting…", "");
+
+  let ticketId = "";
+
+  try {
+    // 1) Always create the ticket first
+    ({ ticketId } = await createTicket({ employeeName, problemDescription }));
+
+    // 2) Try Telegram, but don't fail the whole submit if Telegram fails
+    try {
+      await sendTelegram({
+        ticketId,
+        machineId,
+        machineName,
+        location: locationName,
+        employeeName,
+        problemDescription,
+      });
+    } catch (tgErr) {
+      console.warn("Telegram failed:", tgErr);
+      // show as info only
+      setStatus(`Ticket created: ${ticketId}. (Telegram notification failed)`, "err");
+    }
+
+    // UI success
+    if (statusEl.textContent.includes("Telegram notification failed")) {
+      // keep your message already set
+    } else {
+      setStatus(`Successfully submitted. Ticket created: ${ticketId}`, "ok");
+    }
+
+    document.querySelector(".card").innerHTML = `
+      <h1>Report Submitted</h1>
+      <p style="font-size:18px;margin-top:10px;">
+        Ticket: <b>${ticketId}</b>
+      </p>
+      <p>Please inform maintenance if urgent.</p>
+      <button class="btn" onclick="location.reload()">Submit Another</button>
+    `;
+
+    el("problemDescription").value = "";
+  } catch (err) {
+    console.error(err);
+    setStatus(
+      ticketId
+        ? `Ticket created: ${ticketId}, but something else failed.`
+        : "Submit failed. Check internet / Firebase rules / config.",
+      "err"
+    );
+  } finally {
+    submitBtn.disabled = false;
+  }
+});

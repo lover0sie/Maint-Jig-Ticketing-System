@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Maintenance Login</title>
+  <link rel="stylesheet" href="css/maintenance-login.css" />
+</head>
+<body>
+  <div class="login-card">
+    <div class="brand">
+      <h1>Maintenance Portal</h1>
+      <p>Sign in with your Employee ID and password.</p>
+    </div>
+
+    <div id="alert" class="alert"></div>
+
+    <form id="loginForm" novalidate>
+      <div class="row">
+        <label for="employeeId">Employee ID</label>
+        <input id="employeeId" type="text" placeholder="e.g. 30352" maxlength="20" />
+      </div>
+
+      <div class="row">
+        <label for="password">Password</label>
+        <input id="password" type="password" placeholder="Enter password" maxlength="50" />
+      </div>
+
+      <button class="btn" id="loginBtn" type="submit">Login</button>
+    </form>
+  </div>
+
+  <script type="module" src="js/maintenance-login.js"></script>
+</body>
+
+<div id="loadingOverlay" class="loading-overlay hidden">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <p id="loadingText">Loading...</p>
+  </div>
+</div>
+
+</html>

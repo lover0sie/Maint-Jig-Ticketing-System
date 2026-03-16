@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Maintenance Dashboard</title>
+  <link rel="stylesheet" href="css/maintenance-dashboard.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div>
+        <h1>Maintenance Dashboard</h1>
+        <p id="welcomeText">Loading user...</p>
+      </div>
+      <button id="logoutBtn" class="btn btn-secondary">Logout</button>
+    </header>
+
+    <div id="alert" class="alert"></div>
+
+
+    <section class="toolbar">
+      <div class="filters">
+        <button class="chip active" data-status="OPEN">
+          <span class="chip-label">Open</span>
+          <span class="chip-count" id="count-OPEN">0</span>
+        </button>
+
+        <button class="chip" data-status="IN_PROGRESS">
+          <span class="chip-label">In Progress</span>
+          <span class="chip-count" id="count-IN_PROGRESS">0</span>
+        </button>
+
+        <button class="chip" data-status="WAITING_SPARE_PARTS">
+          <span class="chip-label">Waiting Spare Parts</span>
+          <span class="chip-count" id="count-WAITING_SPARE_PARTS">0</span>
+        </button>
+
+        <button class="chip" data-status="RESOLVED">
+          <span class="chip-label">Resolved</span>
+          <span class="chip-count" id="count-RESOLVED">0</span>
+        </button>
+
+        <button class="chip" data-status="CLOSED">
+          <span class="chip-label">Closed</span>
+          <span class="chip-count" id="count-CLOSED">0</span>
+        </button>
+      </div>
+    </section>
+
+    <div class="filter-row">
+      <div class="filter-group">
+        <label for="filterDate">Filter by Date</label>
+        <input type="date" id="filterDate" />
+      </div>
+
+      <div class="filter-group search-group">
+        <label for="searchTicket">Search Ticket ID</label>
+        <input
+          type="text"
+          id="searchTicket"
+          placeholder="e.g. MCH-20260227-001"
+          maxlength="20"
+        />
+      </div>
+
+      <div class="filter-actions">
+        <button id="clearFiltersBtn" class="btn btn-secondary" type="button">Clear Filters</button>
+      </div>
+    </div>
+
+    <section id="ticketList" class="ticket-list">
+      <div class="empty">Loading tickets...</div>
+    </section>
+  </div>
+
+  <!-- Update modal -->
+  <div id="updateModal" class="modal hidden">
+    <div class="modal-card">
+        <div class="modal-inner">
+          <div class="modal-head">
+          <h2>Update Ticket</h2>
+          <button id="closeModalBtn" class="icon-btn" type="button">✕</button>
+        </div>
+
+        <div class="ticket-summary">
+          <div><b>Ticket ID</b><span id="modalTicketId">-</span></div>
+          <div><b>Machine</b><span id="modalMachine">-</span></div>
+          <div><b>Location</b><span id="modalLocation">-</span></div>
+        </div>
+
+        <div class="row">
+          <label>Ticket History</label>
+          <div class="timeline" id="ticketTimeline"></div>
+        </div>
+
+        <form id="updateForm" novalidate>
+          <div class="row">
+            <label for="updateStatus">Status</label>
+            <select id="updateStatus">
+              <option value="OPEN">Open</option>
+              <option value="IN_PROGRESS">In Progress</option>
+              <option value="WAITING_SPARE_PARTS">Waiting Spare Parts</option>
+              <option value="RESOLVED">Resolved</option>
+              <option value="CLOSED">Closed</option>
+            </select>
+          </div>
+
+          <div class="row">
+            <label for="actionTaken">Action Taken</label>
+            <textarea id="actionTaken" maxlength="500" placeholder="Describe what was checked, repaired, or required..."></textarea>
+            <div class="help"><span id="actionCount">0</span>/500 characters</div>
+          </div>
+
+          <div class="row">
+            <label for="evidencePhotos">Evidence Photos</label>
+            <input id="evidencePhotos" type="file" accept="image/*" multiple />
+            <div class="help">Function will be added later</div>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" id="cancelBtn" class="btn btn-secondary">Cancel</button>
+            <button type="submit" id="saveUpdateBtn" class="btn">Save Update</button>
+          </div>
+        </form>
+      </div>
+      
+    </div>
+  </div>
+
+    <div id="loadingOverlay" class="loading-overlay hidden">
+    <div class="loading-box">
+      <div class="spinner"></div>
+      <p id="loadingText">Loading...</p>
+    </div>
+  </div>
+
+  <script type="module" src="js/maintenance-dashboard.js"></script>
+</body>
+</html>

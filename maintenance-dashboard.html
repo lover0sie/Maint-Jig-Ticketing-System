@@ -55,12 +55,12 @@
       </div>
 
       <div class="filter-group search-group">
-        <label for="searchTicket">Search Ticket ID</label>
+        <label for="searchMachine">Search Machine / Location</label>
         <input
           type="text"
-          id="searchTicket"
-          placeholder="e.g. MCH-20260227-001"
-          maxlength="20"
+          id="searchMachine"
+          placeholder="Search machine ID, machine name, or location"
+          maxlength="100"
         />
       </div>
 
@@ -115,7 +115,8 @@
           <div class="row">
             <label for="evidencePhotos">Evidence Photos</label>
             <input id="evidencePhotos" type="file" accept="image/*" multiple />
-            <div class="help">Function will be added later</div>
+            <div class="help">Maximum 3 photos. Max 2MB each.</div>
+            <div id="selectedPhotoList" class="selected-photo-list"></div>
           </div>
 
           <div class="modal-actions">

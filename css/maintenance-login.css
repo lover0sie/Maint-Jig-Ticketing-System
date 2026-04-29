@@ -16,7 +16,7 @@
   --err-border: #fecaca;
   --err-text: #991b1b;
 
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-family: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, system-ui, sans-serif;
 }
 
 *{ box-sizing: border-box; }

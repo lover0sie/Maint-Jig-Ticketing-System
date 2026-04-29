@@ -14,12 +14,21 @@ import {
   updateDoc,
   addDoc,
   serverTimestamp,
-  getCountFromServer
+  getCountFromServer,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
 
 import { auth, db } from "./firebase.js";
 
 const el = (id) => document.getElementById(id);
+
+const storage = getStorage();
 
 const STATUS_LABELS = {
   OPEN: "Open",
@@ -60,13 +69,18 @@ const actionTaken = el("actionTaken");
 const actionCount = el("actionCount");
 
 const filterDate = el("filterDate");
-const searchTicket = el("searchTicket");
+const searchMachine = el("searchMachine");
 const clearFiltersBtn = el("clearFiltersBtn");
+
+const evidencePhotos = el("evidencePhotos");
+const selectedPhotoList = el("selectedPhotoList");
 
 let currentUserProfile = null;
 let currentStatusFilter = "OPEN";
 let selectedTicket = null;
 let saveInFlight = false;
+
+let selectedPhotoFiles = [];
 
 
 
@@ -147,6 +161,48 @@ function formatDateTime(ts) {
   };
 }
 
+function renderSelectedPhotos() {
+  if (!selectedPhotoList) return;
+
+  if (!selectedPhotoFiles.length) {
+    selectedPhotoList.innerHTML = "";
+    return;
+  }
+
+  selectedPhotoList.innerHTML = selectedPhotoFiles.map((file, index) => `
+    <div class="selected-photo-item">
+      <div class="selected-photo-text">
+        Picture ${index + 1} - ${escapeHtml(file.name)} selected
+      </div>
+      <button
+        type="button"
+        class="remove-photo-btn"
+        data-index="${index}"
+      >
+        Remove
+      </button>
+    </div>
+  `).join("");
+
+  selectedPhotoList.querySelectorAll(".remove-photo-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      removeSelectedPhoto(Number(btn.dataset.index));
+    });
+  });
+}
+
+function syncEvidencePhotosInput() {
+  const dt = new DataTransfer();
+  selectedPhotoFiles.forEach((file) => dt.items.add(file));
+  evidencePhotos.files = dt.files;
+}
+
+function removeSelectedPhoto(removeIndex) {
+  selectedPhotoFiles = selectedPhotoFiles.filter((_, index) => index !== removeIndex);
+  syncEvidencePhotosInput();
+  renderSelectedPhotos();
+}
+
 
 async function openModal(ticket) {
   selectedTicket = ticket;
@@ -157,26 +213,34 @@ async function openModal(ticket) {
 
   actionTaken.value = "";
   actionCount.textContent = "0";
+  evidencePhotos.value = "";
 
   populateStatusOptions(ticket.status || "OPEN");
 
   const isClosed = ticket.status === "CLOSED";
-
   actionTaken.disabled = isClosed;
   saveUpdateBtn.disabled = isClosed;
-  el("evidencePhotos").disabled = isClosed;
+  evidencePhotos.disabled = isClosed;
+
+  selectedPhotoFiles = [];
+  evidencePhotos.value = "";
+  renderSelectedPhotos();
 
   updateModal.classList.remove("hidden");
-
-  await loadTicketTimeline(ticket.ticketId, ticket);
+  await loadTicketTimeline(ticket.id, ticket);
 
   document.body.style.overflow = "hidden";
+
+ 
 }
 
 function closeModal() {
   selectedTicket = null;
   updateForm.reset();
   actionCount.textContent = "0";
+  selectedPhotoFiles = [];
+  evidencePhotos.value = "";
+  renderSelectedPhotos();
   document.body.style.overflow = "";
   updateModal.classList.add("hidden");
 }
@@ -246,20 +310,32 @@ async function loadTickets(status) {
       });
     }
 
-    // Search by ticket ID
-    const searchValue = searchTicket.value.trim().toUpperCase();
+    // Search by machine ID, machine name, or location
+    const searchValue = searchMachine.value.trim().toUpperCase();
+
     if (searchValue) {
-      docs = docs.filter((t) =>
-        String(t.ticketId || "").toUpperCase().includes(searchValue)
-      );
-    }
+      docs = docs.filter((t) => {
+        const machineId = String(t.machine?.id || "").toUpperCase();
+        const machineName = String(t.machine?.name || "").toUpperCase();
+        const location = String(t.machine?.location || "").toUpperCase();
+
+        return (
+          machineId.includes(searchValue) ||
+          machineName.includes(searchValue) ||
+          location.includes(searchValue)
+        );
+      });
+}
 
     if (!docs.length) {
       ticketList.innerHTML = `<div class="empty">No tickets match the selected filters.</div>`;
       return;
     }
 
-    ticketList.innerHTML = docs.map((t) => `
+    ticketList.innerHTML = docs.map((t) => {
+    const latestPhotos = Array.isArray(t.latestPhotos) ? t.latestPhotos : [];
+
+    return `
       <article class="ticket-card">
         <div class="ticket-head">
           <div>
@@ -286,13 +362,42 @@ async function loadTickets(status) {
             <b>Latest Action</b>
             <span>${escapeHtml(t.latestAction || "-")}</span>
           </div>
+          <div>
+            <b>Photo Evidence</b>
+            ${
+              latestPhotos.length
+                ? `
+                  <div class="ticket-images">
+                    ${latestPhotos.map((url) => `
+                      <img
+                        src="${escapeHtml(url)}"
+                        data-url="${escapeHtml(url)}"
+                        class="ticket-img previewable-img"
+                        loading="lazy"
+                      />
+                    `).join("")}
+                  </div>
+                `
+                : `<span>-</span>`
+            }
+          </div>
         </div>
 
         <div class="ticket-actions">
           <button class="btn open-ticket-btn" data-ticket-id="${escapeHtml(t.ticketId)}">Update Status</button>
         </div>
       </article>
-    `).join("");
+    `;
+  }).join("");
+
+      document.querySelectorAll(".previewable-img").forEach((img) => {
+      img.addEventListener("click", () => {
+        const rawUrl = img.dataset.url;
+        if (rawUrl) {
+          window.open(rawUrl, "_blank");
+        }
+      });
+    });
 
     document.querySelectorAll(".open-ticket-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -337,11 +442,12 @@ async function loadTicketTimeline(ticketId, ticketData) {
     snap.forEach((docSnap) => {
       const d = docSnap.data();
       items.push({
-        type: d.status || "OPEN",
-        title: formatStatus(d.status || "OPEN"),
-        by: d.updatedByName || "-",
-        text: d.actionTaken || "-",
-        createdAt: d.createdAt
+        type: d.status,
+        title: formatStatus(d.status),
+        by: d.updatedByName,
+        text: d.actionTaken,
+        createdAt: d.createdAt,
+        photos: d.photos || []
       });
     });
 
@@ -365,6 +471,13 @@ async function loadTicketTimeline(ticketId, ticketData) {
           </div>
 
           <div class="timeline-content">
+           ${item.photos?.length ? `
+            <div class="timeline-images">
+              ${item.photos.map(url => `
+                <img src="${url}" class="timeline-img" />
+              `).join("")}
+            </div>
+            ` : ""}
             <div class="timeline-title">${escapeHtml(item.title)}</div>
             <div class="timeline-meta">${escapeHtml(item.by)}</div>
             <div class="timeline-text">${escapeHtml(item.text)}</div>
@@ -405,24 +518,18 @@ filterDate.addEventListener("change", async () => {
   await loadTickets(currentStatusFilter);
 });
 
-searchTicket.addEventListener("input", async () => {
+searchMachine.addEventListener("input", async () => {
   await loadTickets(currentStatusFilter);
 });
 
-
 clearFiltersBtn.addEventListener("click", async () => {
   filterDate.value = "";
-  searchTicket.value = "";
+  searchMachine.value = "";
   await loadTickets(currentStatusFilter);
 });
 
 updateForm.addEventListener("submit", async (e) => {
   e.preventDefault();
-  console.log("Save update clicked");
-  console.log("selectedTicket:", selectedTicket);
-  console.log("saveInFlight:", saveInFlight);
-  console.log("status:", updateStatus.value);
-  console.log("action:", actionTaken.value);
 
   if (!selectedTicket || saveInFlight) return;
 
@@ -441,19 +548,41 @@ updateForm.addEventListener("submit", async (e) => {
       return;
     }
 
-    console.log("1. Adding history record...");
+    const files = Array.from(evidencePhotos.files || []);
+    const photoUrls = [];
+    const MAX_SIZE_MB = 2;
 
-    await addDoc(collection(db, "tickets", selectedTicket.ticketId, "updates"), {
+    if (files.length > 3) {
+      showAlert("You can upload a maximum of 3 photos only.", "err");
+      return;
+    }
+
+    for (const file of files) {
+      if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+        showAlert(`File ${file.name} exceeds 2MB limit.`, "err");
+        return;
+      }
+    }
+
+    for (const file of files) {
+      const safeName = file.name.replace(/[^\w.-]+/g, "_");
+      const filePath = `ticket_photos/${selectedTicket.ticketId}/${Date.now()}_${safeName}`;
+
+      const storageRef = ref(storage, filePath);
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+      photoUrls.push(downloadURL);
+    }
+
+    await addDoc(collection(db, "tickets", selectedTicket.id, "updates"), {
       status: newStatus,
       actionTaken: action,
       updatedByUid: auth.currentUser.uid,
       updatedByEmployeeId: currentUserProfile.employeeId || currentUserProfile.employeeID,
       updatedByName: currentUserProfile.name,
       createdAt: serverTimestamp(),
-      photos: []
+      photos: photoUrls
     });
-
-    console.log("2. History record added successfully");
 
     const payload = {
       status: newStatus,
@@ -463,14 +592,11 @@ updateForm.addEventListener("submit", async (e) => {
       latestUpdatedBy: currentUserProfile.employeeId || currentUserProfile.employeeID,
       latestUpdatedByName: currentUserProfile.name,
       latestUpdatedAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
+      updatedAt: serverTimestamp(),
+      latestPhotos: photoUrls
     };
 
-    console.log("3. Updating main ticket...", selectedTicket.ticketId, payload);
-
-    await updateDoc(doc(db, "tickets", selectedTicket.ticketId), payload);
-
-    console.log("4. Main ticket updated successfully");
+    await updateDoc(doc(db, "tickets", selectedTicket.id), payload);
 
     showAlert(`Ticket ${selectedTicket.ticketId} updated successfully.`, "ok");
     closeModal();
@@ -520,4 +646,44 @@ onAuthStateChanged(auth, async (user) => {
     console.error(err);
     showAlert("Could not verify user access.", "err");
   }
+});
+
+evidencePhotos.addEventListener("change", () => {
+  clearAlert();
+
+  const newlyPickedFiles = Array.from(evidencePhotos.files || []);
+  if (!newlyPickedFiles.length) return;
+
+  const MAX_FILES = 3;
+  const MAX_SIZE_MB = 2;
+
+  for (const file of newlyPickedFiles) {
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      showAlert(`File ${file.name} exceeds 2MB limit.`, "err");
+      syncEvidencePhotosInput();
+      renderSelectedPhotos();
+      return;
+    }
+  }
+
+  for (const file of newlyPickedFiles) {
+    const alreadyExists = selectedPhotoFiles.some(
+      (f) =>
+        f.name === file.name &&
+        f.size === file.size &&
+        f.lastModified === file.lastModified
+    );
+
+    if (!alreadyExists) {
+      selectedPhotoFiles.push(file);
+    }
+  }
+
+  if (selectedPhotoFiles.length > MAX_FILES) {
+    selectedPhotoFiles = selectedPhotoFiles.slice(0, MAX_FILES);
+    showAlert("Maximum 3 photos only. Extra photos were ignored.", "err");
+  }
+
+  syncEvidencePhotosInput();
+  renderSelectedPhotos();
 });

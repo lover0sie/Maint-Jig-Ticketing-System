@@ -22,7 +22,7 @@
   --err-border:#fecaca;
   --err-text:#991b1b;
 
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-family: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, system-ui, sans-serif;
 }
 
 *{ box-sizing:border-box; }
@@ -117,9 +117,14 @@ body{
   background: #fff;
   border-radius: 999px;
   padding: 9px 13px;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
   color: var(--text);
+}
+
+.chip-label{
+  white-space: nowrap;
+  line-height: 1;
 }
 
 .chip.active{
@@ -483,14 +488,15 @@ select:focus, textarea:focus{
   margin-top: 16px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
 }
 
 .timeline-item{
   display: grid;
-  grid-template-columns: 110px 30px 1fr;
-  gap: 10px;
+  grid-template-columns: 110px 34px 1fr;
+  gap: 12px;
   align-items: start;
+  position: relative;
 }
 
 .timeline-time{
@@ -513,7 +519,7 @@ select:focus, textarea:focus{
   position: relative;
   display: flex;
   justify-content: center;
-  min-height: 70px;
+  min-height: 100%;
 }
 
 .timeline-dot{
@@ -521,22 +527,29 @@ select:focus, textarea:focus{
   height: 16px;
   border-radius: 50%;
   position: relative;
-  z-index: 2;
-  margin-top: 2px;
+  z-index: 1;
+  margin-top: 4px;
   border: 3px solid #fff;
   box-shadow: 0 0 0 1px rgba(0,0,0,.08);
 }
 
 .timeline-line{
   position: absolute;
-  top: 18px;
-  bottom: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  top: -18px;
+  bottom: -18px;
   width: 2px;
   background: #d1d5db;
+  z-index:0;
+}
+
+.timeline-item:first-child .timeline.line{
+  top: 12px;
 }
 
 .timeline-item:last-child .timeline-line{
-  display: none;
+  bottom: calc(100% - 18px); /* stops at centre */
 }
 
 .timeline-content{
@@ -612,4 +625,69 @@ select:focus, textarea:focus{
   .timeline-content{
     margin-left: 0;
   }
+}
+
+/* =============== Photo Evidence =============== */
+.ticket-images {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.ticket-img {
+  width: 70px;
+  height: 70px;
+  object-fit: cover;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.timeline-images {
+  margin-top: 6px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.timeline-img {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.selected-photo-list {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.selected-photo-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #d8dee9;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.selected-photo-text {
+  font-size: 13px;
+  color: #334155;
+  word-break: break-word;
+}
+
+.remove-photo-btn {
+  border: 0;
+  background: #fee2e2;
+  color: #b91c1c;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
 }

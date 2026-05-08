@@ -33,11 +33,39 @@ const sideUserInitial = el("sideUserInitial");
 const sideUserName = el("sideUserName");
 const sideUserEmail = el("sideUserEmail");
 const logoutBtn = el("logoutBtn");
+const menuToggle = el("menuToggle");
+const sidebarBackdrop = el("sidebarBackdrop");
 const ticketList = el("ticketList");
 const alertEl = el("alert");
 const searchMachine = el("searchMachine");
 const loadingOverlay = el("loadingOverlay");
 const loadingText = el("loadingText");
+
+function setSidebarOpen(isOpen) {
+  document.body.classList.toggle("sidebar-open", isOpen);
+  if (menuToggle) {
+    menuToggle.setAttribute("aria-expanded", String(isOpen));
+    menuToggle.setAttribute("aria-label", isOpen ? "Close menu" : "Open menu");
+  }
+}
+
+if (menuToggle) {
+  menuToggle.addEventListener("click", () => {
+    setSidebarOpen(!document.body.classList.contains("sidebar-open"));
+  });
+}
+
+if (sidebarBackdrop) {
+  sidebarBackdrop.addEventListener("click", () => setSidebarOpen(false));
+}
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") setSidebarOpen(false);
+});
+
+document.querySelectorAll(".side-link, .side-nav .chip").forEach((item) => {
+  item.addEventListener("click", () => setSidebarOpen(false));
+});
 
 function showLoading(message = "Loading...") {
   loadingText.textContent = message;

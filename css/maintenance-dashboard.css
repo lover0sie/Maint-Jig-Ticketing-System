@@ -35,6 +35,11 @@ body{
   color:var(--text);
 }
 
+.menu-toggle,
+.sidebar-backdrop{
+  display:none;
+}
+
 .side-menu{
   position:fixed;
   inset:0 auto 0 0;
@@ -652,18 +657,122 @@ select:focus, textarea:focus{
 }
 
 @media (max-width: 700px){
+  body.sidebar-open{
+    overflow:hidden;
+  }
+
+  .menu-toggle{
+    position:fixed;
+    top:12px;
+    left:12px;
+    z-index:1200;
+    width:44px;
+    height:44px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:5px;
+    border:1px solid var(--border);
+    border-radius:14px;
+    background:#fff;
+    box-shadow:0 10px 24px rgba(17,24,39,.12);
+    cursor:pointer;
+  }
+
+  .menu-toggle span{
+    width:18px;
+    height:2px;
+    border-radius:999px;
+    background:#374151;
+  }
+
+  .sidebar-backdrop{
+    position:fixed;
+    inset:0;
+    z-index:1050;
+    display:block;
+    pointer-events:none;
+    background:rgba(15,23,42,.42);
+    opacity:0;
+    transition:opacity .2s ease;
+  }
+
+  body.sidebar-open .sidebar-backdrop{
+    pointer-events:auto;
+    opacity:1;
+  }
+
   .side-menu{
-    width:76px;
-    padding:10px 12px;
+    width:min(292px, calc(100vw - 24px));
+    padding:12px;
+    z-index:1100;
+    transform:translateX(-110%);
+    transition:transform .2s ease;
   }
 
   .side-menu:hover,
   .side-menu:focus-within{
-    width:246px;
+    width:min(292px, calc(100vw - 24px));
+  }
+
+  body.sidebar-open .side-menu{
+    transform:translateX(0);
+  }
+
+  .side-menu-inner{
+    border-radius:18px;
+    gap:14px;
+    padding:16px 10px;
+  }
+
+  .side-label,
+  .side-email,
+  .side-link .side-label,
+  .side-nav .chip-label{
+    opacity:1;
+  }
+
+  .side-menu .chip-count{
+    position:static;
+    margin-left:auto;
   }
 
   .page{
-    padding-left:86px;
+    width:100%;
+    padding:72px 12px 24px;
+  }
+
+  .topbar{
+    flex-direction:column;
+    margin-bottom:12px;
+  }
+
+  .topbar h1{
+    font-size:21px;
+    padding-left:54px;
+  }
+
+  .filter-row{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:10px;
+  }
+
+  .filter-group,
+  .filter-actions,
+  .filter-actions .btn{
+    width:100%;
+  }
+
+  .ticket-card{
+    padding:12px;
+    border-radius:14px;
+  }
+
+  .ticket-head{
+    flex-direction:column;
+    align-items:flex-start;
   }
 
   .ticket-body,
@@ -677,10 +786,6 @@ select:focus, textarea:focus{
     border-top:1px solid var(--border);
     padding-left:0;
     padding-top:12px;
-  }
-
-  .topbar{
-    flex-direction:column;
   }
 }
 

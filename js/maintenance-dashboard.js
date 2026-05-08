@@ -160,11 +160,30 @@ function populateStatusOptions(currentStatus) {
 
 function showLoading(message = "Loading...") {
   loadingText.textContent = message;
+  loadingOverlay.classList.remove("success");
+  loadingOverlay.classList.remove("hidden");
+}
+
+function showSuccessLoading(message = "Ticket updated successfully.") {
+  loadingText.textContent = message;
+  loadingOverlay.classList.add("success");
   loadingOverlay.classList.remove("hidden");
 }
 
 function hideLoading() {
+  loadingOverlay.classList.remove("success");
   loadingOverlay.classList.add("hidden");
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function setActiveStatusFilter(status) {
+  currentStatusFilter = status;
+  document.querySelectorAll(".chip").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.status === status);
+  });
 }
 
 
@@ -688,6 +707,8 @@ updateForm.addEventListener("submit", async (e) => {
       return;
     }
 
+    showLoading(`Updating ticket ${selectedTicket.ticketId}...`);
+
       for (const file of files) {
         const compressedFile = await compressImage(file);
 
@@ -727,15 +748,19 @@ updateForm.addEventListener("submit", async (e) => {
 
     await updateDoc(doc(db, "tickets", selectedTicket.id), payload);
 
-    showAlert(`Ticket ${selectedTicket.ticketId} updated successfully.`, "ok");
+    showSuccessLoading(`Ticket ${selectedTicket.ticketId} updated successfully.`);
+    await wait(1100);
+
     closeModal();
+    setActiveStatusFilter(newStatus);
     await loadStatusCounts();
-    await loadTickets(currentStatusFilter);
+    await loadTickets(newStatus);
 
   } catch (err) {
     console.error("SAVE UPDATE FAILED:", err);
     showAlert(`Failed to save ticket update: ${err.message}`, "err");
   } finally {
+    hideLoading();
     saveInFlight = false;
     saveUpdateBtn.disabled = false;
   }

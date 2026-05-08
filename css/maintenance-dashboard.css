@@ -851,6 +851,33 @@ select:focus, textarea:focus{
   animation: spin .8s linear infinite;
 }
 
+.loading-overlay.success .spinner{
+  position:relative;
+  display:grid;
+  place-items:center;
+  border-color:#bbf7d0;
+  border-top-color:#bbf7d0;
+  background:#16a34a;
+  animation:none;
+}
+
+.loading-overlay.success .spinner::after{
+  content:"";
+  width:16px;
+  height:9px;
+  border-left:4px solid #fff;
+  border-bottom:4px solid #fff;
+  transform:rotate(-45deg) translate(1px, -1px);
+}
+
+.loading-overlay.success .loading-box{
+  border-color:#bbf7d0;
+}
+
+.loading-overlay.success .loading-box p{
+  color:#166534;
+}
+
 .loading-box p{
   margin: 0;
   font-size: 14px;

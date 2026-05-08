@@ -7,61 +7,73 @@
   <link rel="stylesheet" href="css/maintenance-dashboard.css" />
 </head>
 <body>
-  <div class="page">
-    <header class="topbar">
-      <div>
-        <h1>Maintenance Dashboard</h1>
-        <p id="welcomeText">Loading user...</p>
+  <aside class="side-menu" aria-label="Maintenance menu">
+    <div class="side-menu-inner">
+      <div class="side-user" title="Signed-in user">
+        <span id="sideUserInitial" class="user-icon" aria-hidden="true">M</span>
+        <span class="side-user-details">
+          <span id="sideUserName" class="side-label">Loading user...</span>
+          <span id="sideUserEmail" class="side-email">Maintenance</span>
+        </span>
       </div>
-      <button id="logoutBtn" class="btn btn-secondary">Logout</button>
-    </header>
 
-    <div id="alert" class="alert"></div>
+      <a href="maintenance-search.html" class="side-link">
+        <img src="images/search.png" alt="" class="nav-icon" aria-hidden="true" />
+        <span class="side-label">Search</span>
+      </a>
 
-
-    <section class="toolbar">
-      <div class="filters">
-        <button class="chip active" data-status="OPEN">
+      <nav class="side-nav" aria-label="Ticket status filters">
+        <button class="chip active" data-status="OPEN" type="button">
+          <img src="images/open.png" alt="" class="status-dot" aria-hidden="true" />
           <span class="chip-label">Open</span>
           <span class="chip-count" id="count-OPEN">0</span>
         </button>
 
-        <button class="chip" data-status="IN_PROGRESS">
+        <button class="chip" data-status="IN_PROGRESS" type="button">
+          <img src="images/in-progress.png" alt="" class="status-dot" aria-hidden="true" />
           <span class="chip-label">In Progress</span>
           <span class="chip-count" id="count-IN_PROGRESS">0</span>
         </button>
 
-        <button class="chip" data-status="WAITING_SPARE_PARTS">
+        <button class="chip" data-status="WAITING_SPARE_PARTS" type="button">
+          <img src="images/waiting-spare-parts.png" alt="" class="status-dot" aria-hidden="true" />
           <span class="chip-label">Waiting Spare Parts</span>
           <span class="chip-count" id="count-WAITING_SPARE_PARTS">0</span>
         </button>
 
-        <button class="chip" data-status="RESOLVED">
+        <button class="chip" data-status="RESOLVED" type="button">
+          <img src="images/resolved.png" alt="" class="status-dot" aria-hidden="true" />
           <span class="chip-label">Resolved</span>
           <span class="chip-count" id="count-RESOLVED">0</span>
         </button>
 
-        <button class="chip" data-status="CLOSED">
+        <button class="chip" data-status="CLOSED" type="button">
+          <img src="images/closed.png" alt="" class="status-dot" aria-hidden="true" />
           <span class="chip-label">Closed</span>
           <span class="chip-count" id="count-CLOSED">0</span>
         </button>
+      </nav>
+
+      <button id="logoutBtn" class="side-logout" type="button">
+        <img src="images/exit-button.png" alt="" class="logout-icon" aria-hidden="true" />
+        <span class="side-label">Log Out</span>
+      </button>
+    </div>
+  </aside>
+
+  <div class="page">
+    <header class="topbar">
+      <div>
+        <h1>Maintenance Dashboard</h1>
       </div>
-    </section>
+    </header>
+
+    <div id="alert" class="alert"></div>
 
     <div class="filter-row">
       <div class="filter-group">
         <label for="filterDate">Filter by Date</label>
         <input type="date" id="filterDate" />
-      </div>
-
-      <div class="filter-group search-group">
-        <label for="searchMachine">Search Machine / Location</label>
-        <input
-          type="text"
-          id="searchMachine"
-          placeholder="Search machine ID, machine name, or location"
-          maxlength="100"
-        />
       </div>
 
       <div class="filter-actions">

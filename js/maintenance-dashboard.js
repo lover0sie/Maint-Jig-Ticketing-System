@@ -50,7 +50,9 @@ const ALLOWED_STATUS_TRANSITIONS = {
 
 let isLoggingOut = false;
 
-const welcomeText = el("welcomeText");
+const sideUserInitial = el("sideUserInitial");
+const sideUserName = el("sideUserName");
+const sideUserEmail = el("sideUserEmail");
 const logoutBtn = el("logoutBtn");
 const ticketList = el("ticketList");
 const alertEl = el("alert");
@@ -311,7 +313,7 @@ async function loadTickets(status) {
     }
 
     // Search by machine ID, machine name, or location
-    const searchValue = searchMachine.value.trim().toUpperCase();
+    const searchValue = searchMachine ? searchMachine.value.trim().toUpperCase() : "";
 
     if (searchValue) {
       docs = docs.filter((t) => {
@@ -345,24 +347,27 @@ async function loadTickets(status) {
           <span class="badge ${escapeHtml(t.status)}">${escapeHtml(formatStatus(t.status || "-"))}</span>
         </div>
 
-        <div class="ticket-grid">
-          <div>
-            <b>Location</b>
-            <span>${escapeHtml(t.machine?.location || "-")}</span>
+        <div class="ticket-body">
+          <div class="ticket-grid">
+            <div>
+              <b>Location</b>
+              <span>${escapeHtml(t.machine?.location || "-")}</span>
+            </div>
+            <div>
+              <b>Reported By</b>
+              <span>${escapeHtml(t.employeeName || "-")}</span>
+            </div>
+            <div>
+              <b>Problem</b>
+              <span>${escapeHtml(t.problemDescription || "-")}</span>
+            </div>
+            <div>
+              <b>Latest Action</b>
+              <span>${escapeHtml(t.latestAction || "-")}</span>
+            </div>
           </div>
-          <div>
-            <b>Reported By</b>
-            <span>${escapeHtml(t.employeeName || "-")}</span>
-          </div>
-          <div>
-            <b>Problem</b>
-            <span>${escapeHtml(t.problemDescription || "-")}</span>
-          </div>
-          <div>
-            <b>Latest Action</b>
-            <span>${escapeHtml(t.latestAction || "-")}</span>
-          </div>
-          <div>
+
+          <aside class="ticket-photo-panel">
             <b>Photo Evidence</b>
             ${
               latestPhotos.length
@@ -374,13 +379,14 @@ async function loadTickets(status) {
                         data-url="${escapeHtml(url)}"
                         class="ticket-img previewable-img"
                         loading="lazy"
+                        alt="Ticket photo evidence"
                       />
                     `).join("")}
                   </div>
                 `
                 : `<span>-</span>`
             }
-          </div>
+          </aside>
         </div>
 
         <div class="ticket-actions">
@@ -514,19 +520,25 @@ async function loadStatusCounts() {
   }
 }
 
-filterDate.addEventListener("change", async () => {
-  await loadTickets(currentStatusFilter);
-});
+if (filterDate) {
+  filterDate.addEventListener("change", async () => {
+    await loadTickets(currentStatusFilter);
+  });
+}
 
-searchMachine.addEventListener("input", async () => {
-  await loadTickets(currentStatusFilter);
-});
+if (searchMachine) {
+  searchMachine.addEventListener("input", async () => {
+    await loadTickets(currentStatusFilter);
+  });
+}
 
-clearFiltersBtn.addEventListener("click", async () => {
-  filterDate.value = "";
-  searchMachine.value = "";
-  await loadTickets(currentStatusFilter);
-});
+if (clearFiltersBtn) {
+  clearFiltersBtn.addEventListener("click", async () => {
+    if (filterDate) filterDate.value = "";
+    if (searchMachine) searchMachine.value = "";
+    await loadTickets(currentStatusFilter);
+  });
+}
 
 updateForm.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -638,7 +650,9 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     currentUserProfile = profile;
-    welcomeText.textContent = `Signed in as ${profile.name} (${profile.employeeId})`;
+    if (sideUserInitial) sideUserInitial.textContent = (profile.name || "M").trim().charAt(0).toUpperCase();
+    if (sideUserName) sideUserName.textContent = profile.name || "Maintenance";
+    if (sideUserEmail) sideUserEmail.textContent = user.email || profile.email || profile.employeeId || "Maintenance";
 
     await loadStatusCounts();
     await loadTickets(currentStatusFilter);

@@ -93,6 +93,10 @@ let saveInFlight = false;
 let selectedPhotoFiles = [];
 let alertTimeout = null;
 
+const UPDATE_LOADING_MIN_MS = 2200;
+const UPDATE_SUCCESS_MS = 2800;
+const UPDATE_ERROR_MS = 2800;
+
 
 function openImagePreview(url) {
   previewLargeImage.src = url;
@@ -161,22 +165,39 @@ function populateStatusOptions(currentStatus) {
 function showLoading(message = "Loading...") {
   loadingText.textContent = message;
   loadingOverlay.classList.remove("success");
+  loadingOverlay.classList.remove("error");
   loadingOverlay.classList.remove("hidden");
 }
 
 function showSuccessLoading(message = "Ticket updated successfully.") {
   loadingText.textContent = message;
+  loadingOverlay.classList.remove("error");
   loadingOverlay.classList.add("success");
+  loadingOverlay.classList.remove("hidden");
+}
+
+function showErrorLoading(message = "Failed to update ticket.") {
+  loadingText.textContent = message;
+  loadingOverlay.classList.remove("success");
+  loadingOverlay.classList.add("error");
   loadingOverlay.classList.remove("hidden");
 }
 
 function hideLoading() {
   loadingOverlay.classList.remove("success");
+  loadingOverlay.classList.remove("error");
   loadingOverlay.classList.add("hidden");
 }
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForMinimumDuration(startTime, minDurationMs) {
+  const elapsed = Date.now() - startTime;
+  if (elapsed < minDurationMs) {
+    await wait(minDurationMs - elapsed);
+  }
 }
 
 function setActiveStatusFilter(status) {
@@ -356,9 +377,9 @@ async function openModal(ticket) {
   updateModal.classList.remove("hidden");
   await loadTicketTimeline(ticket.id, ticket);
 
+  setSidebarOpen(false);
+  document.body.classList.add("modal-open");
   document.body.style.overflow = "hidden";
-
- 
 }
 
 function closeModal() {
@@ -368,6 +389,7 @@ function closeModal() {
   selectedPhotoFiles = [];
   evidencePhotos.value = "";
   renderSelectedPhotos();
+  document.body.classList.remove("modal-open");
   document.body.style.overflow = "";
   updateModal.classList.add("hidden");
 }
@@ -684,6 +706,7 @@ updateForm.addEventListener("submit", async (e) => {
 
   saveInFlight = true;
   saveUpdateBtn.disabled = true;
+  let updateStartedAt = null;
 
   try {
     clearAlert();
@@ -707,6 +730,7 @@ updateForm.addEventListener("submit", async (e) => {
       return;
     }
 
+    updateStartedAt = Date.now();
     showLoading(`Updating ticket ${selectedTicket.ticketId}...`);
 
       for (const file of files) {
@@ -748,8 +772,9 @@ updateForm.addEventListener("submit", async (e) => {
 
     await updateDoc(doc(db, "tickets", selectedTicket.id), payload);
 
+    await waitForMinimumDuration(updateStartedAt, UPDATE_LOADING_MIN_MS);
     showSuccessLoading(`Ticket ${selectedTicket.ticketId} updated successfully.`);
-    await wait(1100);
+    await wait(UPDATE_SUCCESS_MS);
 
     closeModal();
     setActiveStatusFilter(newStatus);
@@ -758,6 +783,11 @@ updateForm.addEventListener("submit", async (e) => {
 
   } catch (err) {
     console.error("SAVE UPDATE FAILED:", err);
+    if (updateStartedAt) {
+      await waitForMinimumDuration(updateStartedAt, UPDATE_LOADING_MIN_MS);
+      showErrorLoading("Failed to update ticket.");
+      await wait(UPDATE_ERROR_MS);
+    }
     showAlert(`Failed to save ticket update: ${err.message}`, "err");
   } finally {
     hideLoading();

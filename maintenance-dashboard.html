@@ -133,8 +133,8 @@
 
           <div class="row">
             <label for="evidencePhotos">Evidence Photos</label>
-            <input id="evidencePhotos" type="file" accept="image/*" multiple />
-            <div class="help">Maximum 3 photos. Max 2MB each.</div>
+            <input id="evidencePhotos" type="file" accept="image/*" />
+            <div class="help">Only 1 photo required</div>
             <div id="selectedPhotoList" class="selected-photo-list"></div>
           </div>
 
@@ -153,6 +153,11 @@
       <div class="spinner"></div>
       <p id="loadingText">Loading...</p>
     </div>
+  </div>
+
+  <div id="imagePreviewModal" class="image-preview-modal hidden">
+    <button id="closeImagePreview" class="image-preview-close">×</button>
+    <img id="previewLargeImage" src="" alt="Preview image" />
   </div>
 
   <script type="module" src="js/maintenance-dashboard.js"></script>

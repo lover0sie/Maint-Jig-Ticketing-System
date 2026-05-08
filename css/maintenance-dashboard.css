@@ -1074,3 +1074,36 @@ select:focus, textarea:focus{
   font-size: 12px;
   font-weight: 600;
 }
+
+.image-preview-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.image-preview-modal.hidden {
+  display: none;
+}
+
+.image-preview-modal img {
+  max-width: 95vw;
+  max-height: 90vh;
+  border-radius: 12px;
+  object-fit: contain;
+}
+
+.image-preview-close {
+  position: fixed;
+  top: 18px;
+  right: 24px;
+  font-size: 36px;
+  color: white;
+  background: none;
+  border: none;
+  cursor: pointer;
+}

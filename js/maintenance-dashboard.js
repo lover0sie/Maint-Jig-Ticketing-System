@@ -79,17 +79,38 @@ const clearFiltersBtn = el("clearFiltersBtn");
 const evidencePhotos = el("evidencePhotos");
 const selectedPhotoList = el("selectedPhotoList");
 
+const loadingOverlay = el("loadingOverlay");
+const loadingText = el("loadingText");
+
+const imagePreviewModal = el("imagePreviewModal");
+const previewLargeImage = el("previewLargeImage");
+const closeImagePreview = el("closeImagePreview");
+
 let currentUserProfile = null;
 let currentStatusFilter = "OPEN";
 let selectedTicket = null;
 let saveInFlight = false;
-
 let selectedPhotoFiles = [];
+let alertTimeout = null;
 
 
+function openImagePreview(url) {
+  previewLargeImage.src = url;
+  imagePreviewModal.classList.remove("hidden");
+}
 
-const loadingOverlay = el("loadingOverlay");
-const loadingText = el("loadingText");
+function closeImagePreviewModal() {
+  previewLargeImage.src = "";
+  imagePreviewModal.classList.add("hidden");
+}
+
+closeImagePreview.addEventListener("click", closeImagePreviewModal);
+
+imagePreviewModal.addEventListener("click", (e) => {
+  if (e.target === imagePreviewModal) {
+    closeImagePreviewModal();
+  }
+});
 
 function setSidebarOpen(isOpen) {
   document.body.classList.toggle("sidebar-open", isOpen);
@@ -147,9 +168,15 @@ function hideLoading() {
 }
 
 
-function showAlert(msg, kind = "err") {
+function showAlert(msg, kind = "err", duration = 30000) {
+  clearTimeout(alertTimeout);
+
   alertEl.textContent = msg;
   alertEl.className = `alert show ${kind}`;
+
+  alertTimeout = setTimeout(() => {
+    clearAlert();
+  }, duration);
 }
 
 function clearAlert() {
@@ -187,6 +214,61 @@ function formatDateTime(ts) {
   };
 }
 
+async function compressImage(file, maxWidth = 1280, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      img.src = e.target.result;
+    };
+
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+
+      let width = img.width;
+      let height = img.height;
+
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error("Image compression failed."));
+            return;
+          }
+
+          const compressedFile = new File(
+            [blob],
+            file.name.replace(/\.[^/.]+$/, "") + ".jpg",
+            {
+              type: "image/jpeg",
+              lastModified: Date.now()
+            }
+          );
+
+          resolve(compressedFile);
+        },
+        "image/jpeg",
+        quality
+      );
+    };
+
+    img.onerror = reject;
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 function renderSelectedPhotos() {
   if (!selectedPhotoList) return;
 
@@ -198,7 +280,7 @@ function renderSelectedPhotos() {
   selectedPhotoList.innerHTML = selectedPhotoFiles.map((file, index) => `
     <div class="selected-photo-item">
       <div class="selected-photo-text">
-        Picture ${index + 1} - ${escapeHtml(file.name)} selected
+        Picture - ${escapeHtml(file.name)} selected
       </div>
       <button
         type="button"
@@ -425,7 +507,7 @@ async function loadTickets(status) {
       img.addEventListener("click", () => {
         const rawUrl = img.dataset.url;
         if (rawUrl) {
-          window.open(rawUrl, "_blank");
+          openImagePreview(rawUrl);
         }
       });
     });
@@ -505,7 +587,12 @@ async function loadTicketTimeline(ticketId, ticketData) {
            ${item.photos?.length ? `
             <div class="timeline-images">
               ${item.photos.map(url => `
-                <img src="${url}" class="timeline-img" />
+               <img 
+                  src="${escapeHtml(url)}" 
+                  data-url="${escapeHtml(url)}"
+                  class="timeline-img previewable-img"
+                  loading="lazy"
+                />
               `).join("")}
             </div>
             ` : ""}
@@ -516,6 +603,12 @@ async function loadTicketTimeline(ticketId, ticketData) {
         </div>
       `;
     }).join("");
+    timelineEl.querySelectorAll(".previewable-img").forEach((img) => {
+      img.addEventListener("click", () => {
+        const url = img.dataset.url;
+        if (url) openImagePreview(url);
+      });
+    });
   } catch (err) {
     console.error(err);
     timelineEl.innerHTML = `<div class="empty">Failed to load history.</div>`;
@@ -589,27 +682,26 @@ updateForm.addEventListener("submit", async (e) => {
     const photoUrls = [];
     const MAX_SIZE_MB = 2;
 
-    if (files.length > 3) {
-      showAlert("You can upload a maximum of 3 photos only.", "err");
+
+    if (files.length > 1) {
+      showAlert("You can upload 1 photo only.", "err");
       return;
     }
 
-    for (const file of files) {
-      if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-        showAlert(`File ${file.name} exceeds 2MB limit.`, "err");
-        return;
+      for (const file of files) {
+        const compressedFile = await compressImage(file);
+
+        const safeName = compressedFile.name.replace(/[^\w.-]+/g, "_");
+        const filePath = `ticket_photos/${selectedTicket.ticketId}/${Date.now()}_${safeName}`;
+
+        const storageRef = ref(storage, filePath);
+        await uploadBytes(storageRef, compressedFile, {
+          contentType: "image/jpeg"
+        });
+
+        const downloadURL = await getDownloadURL(storageRef);
+        photoUrls.push(downloadURL);
       }
-    }
-
-    for (const file of files) {
-      const safeName = file.name.replace(/[^\w.-]+/g, "_");
-      const filePath = `ticket_photos/${selectedTicket.ticketId}/${Date.now()}_${safeName}`;
-
-      const storageRef = ref(storage, filePath);
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
-      photoUrls.push(downloadURL);
-    }
 
     await addDoc(collection(db, "tickets", selectedTicket.id, "updates"), {
       status: newStatus,
@@ -690,39 +782,27 @@ onAuthStateChanged(auth, async (user) => {
 evidencePhotos.addEventListener("change", () => {
   clearAlert();
 
-  const newlyPickedFiles = Array.from(evidencePhotos.files || []);
-  if (!newlyPickedFiles.length) return;
+  const files = Array.from(evidencePhotos.files || []);
 
-  const MAX_FILES = 3;
-  const MAX_SIZE_MB = 2;
-
-  for (const file of newlyPickedFiles) {
-    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      showAlert(`File ${file.name} exceeds 2MB limit.`, "err");
-      syncEvidencePhotosInput();
-      renderSelectedPhotos();
-      return;
-    }
+  if (!files.length) {
+    selectedPhotoFiles = [];
+    renderSelectedPhotos();
+    return;
   }
 
-  for (const file of newlyPickedFiles) {
-    const alreadyExists = selectedPhotoFiles.some(
-      (f) =>
-        f.name === file.name &&
-        f.size === file.size &&
-        f.lastModified === file.lastModified
-    );
+  const file = files[0];
 
-    if (!alreadyExists) {
-      selectedPhotoFiles.push(file);
-    }
+  if (!file.type.startsWith("image/")) {
+    showAlert("Please upload image file only.", "err");
+    evidencePhotos.value = "";
+    selectedPhotoFiles = [];
+    renderSelectedPhotos();
+    return;
   }
 
-  if (selectedPhotoFiles.length > MAX_FILES) {
-    selectedPhotoFiles = selectedPhotoFiles.slice(0, MAX_FILES);
-    showAlert("Maximum 3 photos only. Extra photos were ignored.", "err");
-  }
-
+  selectedPhotoFiles = [file];
   syncEvidencePhotosInput();
   renderSelectedPhotos();
 });
+
+

@@ -7,6 +7,13 @@ console.log("report.js loaded once check:", location.href);
       getFirestore, doc, runTransaction, setDoc, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
+    import {
+      getStorage,
+      ref,
+      uploadBytes,
+      getDownloadURL
+    } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
+
     // Firebase config
     const firebaseConfig = {
         apiKey: "AIzaSyD8giDD5ClZ8qOmdpg9KiUm6iwZuBGZ11Y",
@@ -19,6 +26,7 @@ console.log("report.js loaded once check:", location.href);
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    const storage = getStorage(app);
 
 // ------------- Read machine details from URL -------------
     const params = new URLSearchParams(location.search);
@@ -78,25 +86,94 @@ console.log("report.js loaded once check:", location.href);
       return `${year}${month}${day}`;
     }
 
-    async function createTicket({ employeeName, problemDescription }) {
+    async function compressImage(file, maxWidth = 1280, quality = 0.7) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const reader = new FileReader();
 
-      const today = getTodayDate(); // get today's date
-      const counterRef = doc(db, "counters", today); // refer to the counter database
+        reader.onload = (e) => {
+          img.src = e.target.result;
+        };
+
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error("Image compression failed."));
+                return;
+              }
+
+              resolve(new File(
+                [blob],
+                file.name.replace(/\.[^/.]+$/, "") + ".jpg",
+                {
+                  type: "image/jpeg",
+                  lastModified: Date.now()
+                }
+              ));
+            },
+            "image/jpeg",
+            quality
+          );
+        };
+
+        img.onerror = reject;
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function generateTicketData() {
+      const today = getTodayDate();
+      const counterRef = doc(db, "counters", today);
 
       return await runTransaction(db, async (tx) => {
-
         const snap = await tx.get(counterRef);
+
         let next = 1;
 
         if (snap.exists()) {
           next = snap.data().next ?? 1;
         }
 
-        const seq = padSeq(next); // 001
-        const ticketId = `MCH-${today}-${seq}`;
+        tx.set(counterRef, { next: next + 1 }, { merge: true });
 
-        // update counter
-        tx.set(counterRef, { next: next + 1 }, { merge:true });
+        const seq = padSeq(next);
+
+        return {
+          today,
+          sequence: next,
+          ticketId: `MCH-${today}-${seq}`
+        };
+      });
+    }
+
+    async function createTicket({
+      ticketId,
+      today,
+      sequence,
+      employeeName,
+      problemDescription,
+      photoUrls = []
+    }) {
+
+      return await runTransaction(db, async (tx) => {
 
         // create ticket
         const ticketRef = doc(db, "tickets", ticketId);
@@ -116,6 +193,9 @@ console.log("report.js loaded once check:", location.href);
           employeeName,
           problemDescription,
           status: "OPEN",
+
+          photos: photoUrls,
+          latestPhotos: photoUrls,
 
           createdAt: serverTimestamp()
         });
@@ -160,7 +240,51 @@ console.log("report.js loaded once check:", location.href);
 
       showAlert("Submitting…", "warn");
 
-      const { ticketId } = await createTicket({ employeeName, problemDescription });
+      const { ticketId, today, sequence } = await generateTicketData();
+
+      const imageInput = el("faultImage");
+      const files = Array.from(imageInput.files || []);
+      const photoUrls = [];
+
+      if (files.length > 1) {
+        showAlert("You can upload 1 photo only.", "err");
+        return;
+      }
+
+      if (files.length === 1) {
+        const file = files[0];
+
+        if (!file.type.startsWith("image/")) {
+          showAlert("Please upload image file only.", "err");
+          return;
+        }
+
+        const compressedFile = await compressImage(file);
+
+        const safeName = compressedFile.name.replace(/[^\w.-]+/g, "_");
+
+        const filePath =
+          `ticket_photos/${ticketId}/${Date.now()}_${safeName}`;
+
+        const storageRef = ref(storage, filePath);
+
+        await uploadBytes(storageRef, compressedFile, {
+          contentType: "image/jpeg"
+        });
+
+        const downloadURL = await getDownloadURL(storageRef);
+
+        photoUrls.push(downloadURL);
+      }
+
+      await createTicket({
+        ticketId,
+        today,
+        sequence,
+        employeeName,
+        problemDescription,
+        photoUrls
+      });
 
       // Telegram optional
       try {
@@ -175,6 +299,7 @@ console.log("report.js loaded once check:", location.href);
 
       // optional clear before replace
       el("problemDescription").value = "";
+      el("faultImage").value = "";
 
       document.querySelector(".card").innerHTML = `
         <h1>Report Submitted</h1>
@@ -194,7 +319,7 @@ console.log("report.js loaded once check:", location.href);
   });
 
 // ------------- Telegram (TEST ONLY) -------------
-async function sendTelegram({ ticketId, machineId, machineName, location, employeeName, problemDescription }) {
+/* async function sendTelegram({ ticketId, machineId, machineName, location, employeeName, problemDescription }) {
   const BOT_TOKEN = "8241324978:AAGL8f_LqUmXPtwrmxSB2v6rKx0Tuv6jVl0"; // <-- replace after revoking old
   const CHAT_ID = "-5223901778";
 
@@ -214,4 +339,76 @@ async function sendTelegram({ ticketId, machineId, machineName, location, employ
 
   const data = await res.json();
   if (!data.ok) throw new Error(data.description || "Telegram send failed");
+}  */
+
+// New telegram message
+
+async function sendTelegram({
+  ticketId,
+  machineId,
+  machineName,
+  location,
+  employeeName,
+  problemDescription,
+  photoUrls = []
+}) {
+
+  const BOT_TOKEN = "8241324978:AAGL8f_LqUmXPtwrmxSB2v6rKx0Tuv6jVl0"; // <-- replace after revoking old
+  const CHAT_ID = "-5223901778";
+
+  const caption =
+    `New Maintenance Ticket\n\n` +
+    `Ticket: ${ticketId}\n` +
+    `Machine: ${machineId} — ${machineName}\n` +
+    `Location: ${location}\n` +
+    `Reported by: ${employeeName}\n\n` +
+    `Problem:\n${problemDescription}`;
+
+  // If image exists → send photo
+  if (photoUrls.length > 0) {
+
+    const res = await fetch(
+      `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          chat_id: CHAT_ID,
+          photo: photoUrls[0],
+          caption: caption
+        })
+      }
+    );
+
+    const data = await res.json();
+
+    if (!data.ok) {
+      throw new Error(data.description || "Telegram photo send failed");
+    }
+
+  } else {
+
+    // fallback text only
+    const res = await fetch(
+      `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          chat_id: CHAT_ID,
+          text: caption
+        })
+      }
+    );
+
+    const data = await res.json();
+
+    if (!data.ok) {
+      throw new Error(data.description || "Telegram message failed");
+    }
+  }
 }

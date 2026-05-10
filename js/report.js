@@ -178,9 +178,9 @@ console.log("report.js loaded once check:", location.href);
         // create ticket
         const ticketRef = doc(db, "tickets", ticketId);
 
-        tx.set(ticketRef, {
-          ticketId: ticketId,
-          sequence: next,
+       tx.set(ticketRef, {
+          ticketId,
+          sequence,
           date: today,
 
           version: version || null,

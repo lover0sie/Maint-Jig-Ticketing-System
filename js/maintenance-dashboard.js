@@ -582,7 +582,8 @@ async function loadTicketTimeline(ticketId, ticketData) {
       title: "Ticket Created",
       by: ticketData.employeeName || "-",
       text: ticketData.problemDescription || "-",
-      createdAt: ticketData.createdAt
+      createdAt: ticketData.createdAt,
+      photos: ticketData.photos || ticketData.latestPhotos || []
     });
 
     // Other events: updates subcollection

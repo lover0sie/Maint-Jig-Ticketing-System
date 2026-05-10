@@ -288,7 +288,15 @@ console.log("report.js loaded once check:", location.href);
 
       // Telegram optional
       try {
-        await sendTelegram({ ticketId, machineId, machineName, location: locationName, employeeName, problemDescription });
+        await sendTelegram({
+          ticketId,
+          machineId,
+          machineName,
+          location: locationName,
+          employeeName,
+          problemDescription,
+          photoUrls
+        });
       } catch (tgErr) {
         console.warn("Telegram failed:", tgErr);
         // keep success, optionally warn:

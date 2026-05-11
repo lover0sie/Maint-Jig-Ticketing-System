@@ -704,6 +704,10 @@ updateForm.addEventListener("submit", async (e) => {
   e.preventDefault();
 
   if (!selectedTicket || saveInFlight) return;
+  if (selectedTicket.status === "CLOSED") {
+    saveUpdateBtn.disabled = true;
+    return;
+  }
 
   saveInFlight = true;
   saveUpdateBtn.disabled = true;

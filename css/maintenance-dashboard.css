@@ -381,8 +381,8 @@ body.modal-open{
   top:3px;
   right:1px;
   border-radius: 999px;
-  background: #eef2ff;
-  color: #1d4ed8;
+  background: var(--primary);
+  color: #fff;
   border:2px solid #fff;
   font-size: 11px;
   font-weight: 700;
@@ -396,8 +396,27 @@ body.modal-open{
 }
 
 .chip.active .chip-count{
-  background:#dbeafe;
-  color:var(--primary);
+  color:#fff;
+}
+
+.chip[data-status="OPEN"] .chip-count{
+  background:var(--open);
+}
+
+.chip[data-status="IN_PROGRESS"] .chip-count{
+  background:var(--progress);
+}
+
+.chip[data-status="WAITING_SPARE_PARTS"] .chip-count{
+  background:var(--waiting);
+}
+
+.chip[data-status="RESOLVED"] .chip-count{
+  background:var(--resolved);
+}
+
+.chip[data-status="CLOSED"] .chip-count{
+  background:var(--closed);
 }
 
 
@@ -512,6 +531,13 @@ body.modal-open{
   color:#fff;
   font-weight:700;
   cursor:pointer;
+}
+
+.btn:disabled{
+  background:#d1d5db;
+  color:#6b7280;
+  cursor:not-allowed;
+  opacity:.75;
 }
 
 .btn-secondary{

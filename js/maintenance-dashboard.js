@@ -577,13 +577,13 @@ async function loadTicketTimeline(ticketId, ticketData) {
     const items = [];
 
     // First event: ticket created
-    items.push({
+   items.push({
       type: "OPEN",
       title: "Ticket Created",
       by: ticketData.employeeName || "-",
       text: ticketData.problemDescription || "-",
       createdAt: ticketData.createdAt,
-      photos: ticketData.photos || ticketData.latestPhotos || []
+      photos: ticketData.photos || []
     });
 
     // Other events: updates subcollection

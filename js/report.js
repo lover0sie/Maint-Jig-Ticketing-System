@@ -286,6 +286,8 @@ console.log("report.js loaded once check:", location.href);
         photoUrls
       });
 
+       showAlert(`Successfully submitted. Ticket created: ${ticketId}`, "ok");
+
       // Telegram optional
       try {
         await sendTelegram({
@@ -302,8 +304,6 @@ console.log("report.js loaded once check:", location.href);
         // keep success, optionally warn:
         // showAlert(`Ticket created: ${ticketId} (Telegram failed)`, "warn");
       }
-
-      showAlert(`Successfully submitted. Ticket created: ${ticketId}`, "ok");
 
       // optional clear before replace
       el("problemDescription").value = "";

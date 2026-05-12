@@ -386,7 +386,8 @@ async function sendTelegram({
         body: JSON.stringify({
           chat_id: CHAT_ID,
           photo: photoUrls[0],
-          caption: caption
+          caption: caption,
+          parse_mode: "Markdown"
         })
       }
     );

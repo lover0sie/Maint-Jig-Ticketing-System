@@ -86,6 +86,9 @@ const imagePreviewModal = el("imagePreviewModal");
 const previewLargeImage = el("previewLargeImage");
 const closeImagePreview = el("closeImagePreview");
 
+const updateDate = el("updateDate");
+const updateTime = el("updateTime");
+
 let currentUserProfile = null;
 let currentStatusFilter = "OPEN";
 let selectedTicket = null;
@@ -96,6 +99,34 @@ let alertTimeout = null;
 const UPDATE_LOADING_MIN_MS = 2200;
 const UPDATE_SUCCESS_MS = 2800;
 const UPDATE_ERROR_MS = 2800;
+
+function formatStoredDate(dateStr) {
+  if (!dateStr) return "-";
+
+  const d = new Date(dateStr);
+
+  return d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric"
+  });
+}
+
+function getCurrentDateMY() {
+  return new Date().toLocaleDateString("en-CA", {
+    timeZone: "Asia/Kuala_Lumpur"
+  });
+}
+
+function getCurrentTimeMY() {
+  return new Date().toLocaleTimeString("en-GB", {
+    timeZone: "Asia/Kuala_Lumpur",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  });
+}
 
 
 function openImagePreview(url) {
@@ -380,6 +411,9 @@ async function openModal(ticket) {
   setSidebarOpen(false);
   document.body.classList.add("modal-open");
   document.body.style.overflow = "hidden";
+
+  updateDate.value = getCurrentDateMY();
+  updateTime.value = getCurrentTimeMY().slice(0, 5);
 }
 
 function closeModal() {
@@ -602,6 +636,8 @@ async function loadTicketTimeline(ticketId, ticketData) {
         by: d.updatedByName,
         text: d.actionTaken,
         createdAt: d.createdAt,
+        updateDate: d.updateDate,
+        updateTime: d.updateTime,
         photos: d.photos || []
       });
     });
@@ -613,11 +649,16 @@ async function loadTicketTimeline(ticketId, ticketData) {
 
     timelineEl.innerHTML = items.map((item) => {
       const dt = formatDateTime(item.createdAt);
+
+      const displayDate = item.updateDate
+          ? formatStoredDate(item.updateDate)
+          : dt.date;
+      const displayTime = item.updateTime || dt.time;
       return `
         <div class="timeline-item">
           <div class="timeline-time">
-            <div class="timeline-date">${escapeHtml(dt.date)}</div>
-            <div class="timeline-hour">${escapeHtml(dt.time)}</div>
+            <div class="timeline-date">${escapeHtml(displayDate)}</div>
+            <div class="timeline-hour">${escapeHtml(displayTime)}</div>
           </div>
 
           <div class="timeline-track">
@@ -703,6 +744,21 @@ if (clearFiltersBtn) {
 updateForm.addEventListener("submit", async (e) => {
   e.preventDefault();
 
+  const selectedUpdateDate = updateDate.value;
+  const selectedUpdateTime = updateTime.value;
+
+  if (!selectedUpdateDate) {
+    showAlert("Please select update date.", "err");
+    updateDate.focus();
+    return;
+  }
+
+  if (!selectedUpdateTime) {
+    showAlert("Please select update time.", "err");
+    updateTime.focus();
+    return;
+  }
+
   if (!selectedTicket || saveInFlight) return;
   if (selectedTicket.status === "CLOSED") {
     saveUpdateBtn.disabled = true;
@@ -753,6 +809,9 @@ updateForm.addEventListener("submit", async (e) => {
         photoUrls.push(downloadURL);
       }
 
+    const updateDate = getCurrentDateMY();
+    const updateTime = getCurrentTimeMY();
+
     await addDoc(collection(db, "tickets", selectedTicket.id, "updates"), {
       status: newStatus,
       actionTaken: action,
@@ -760,6 +819,8 @@ updateForm.addEventListener("submit", async (e) => {
       updatedByEmployeeId: currentUserProfile.employeeId || currentUserProfile.employeeID,
       updatedByName: currentUserProfile.name,
       createdAt: serverTimestamp(),
+      updateDate: selectedUpdateDate,
+      updateTime: selectedUpdateTime,
       photos: photoUrls
     });
 

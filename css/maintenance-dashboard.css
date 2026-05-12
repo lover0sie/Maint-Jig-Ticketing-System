@@ -656,7 +656,11 @@ body.modal-open{
   margin:12px 0;
 }
 
-select, textarea, input[type="file"]{
+select,
+textarea,
+input[type="file"],
+input[type="date"],
+input[type="time"]{
   width:100%;
   padding:11px 12px;
   border:1px solid var(--border);
@@ -672,9 +676,121 @@ textarea{
   resize:vertical;
 }
 
-select:focus, textarea:focus{
+select:focus,
+textarea:focus,
+input[type="date"]:focus,
+input[type="time"]:focus{
   border-color:rgba(29,78,216,.55);
   box-shadow:0 0 0 4px var(--focus);
+}
+
+.update-datetime-grid{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:12px;
+  margin:12px 0;
+}
+
+.update-datetime-field{
+  margin:0;
+}
+
+.datetime-input{
+  position:relative;
+  display:flex;
+  align-items:center;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:linear-gradient(180deg, #fff, #f8fafc);
+  box-shadow:0 8px 18px rgba(17,24,39,.04);
+  transition:border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+
+.datetime-input:focus-within{
+  border-color:rgba(29,78,216,.55);
+  background:#fff;
+  box-shadow:0 0 0 4px var(--focus), 0 10px 22px rgba(17,24,39,.06);
+}
+
+.datetime-input input{
+  min-height:46px;
+  padding:10px 12px 10px 44px;
+  border:0;
+  border-radius:14px;
+  background:transparent;
+  color:var(--text);
+  font-size:14px;
+  font-weight:600;
+  line-height:1.2;
+  box-shadow:none;
+}
+
+.datetime-input input:focus{
+  border-color:transparent;
+  box-shadow:none;
+}
+
+.datetime-icon{
+  position:absolute;
+  left:14px;
+  top:50%;
+  width:18px;
+  height:18px;
+  transform:translateY(-50%);
+  color:var(--primary);
+  pointer-events:none;
+}
+
+.calendar-icon{
+  border:2px solid currentColor;
+  border-radius:5px;
+}
+
+.calendar-icon::before{
+  content:"";
+  position:absolute;
+  left:2px;
+  right:2px;
+  top:4px;
+  border-top:2px solid currentColor;
+}
+
+.calendar-icon::after{
+  content:"";
+  position:absolute;
+  left:4px;
+  top:-4px;
+  width:2px;
+  height:6px;
+  border-radius:999px;
+  background:currentColor;
+  box-shadow:7px 0 0 currentColor;
+}
+
+.clock-icon{
+  border:2px solid currentColor;
+  border-radius:50%;
+}
+
+.clock-icon::before,
+.clock-icon::after{
+  content:"";
+  position:absolute;
+  left:8px;
+  top:4px;
+  width:2px;
+  border-radius:999px;
+  background:currentColor;
+  transform-origin:bottom center;
+}
+
+.clock-icon::before{
+  height:6px;
+}
+
+.clock-icon::after{
+  height:5px;
+  transform:rotate(90deg);
 }
 
 .help{
@@ -825,6 +941,11 @@ select:focus, textarea:focus{
     border-top:1px solid var(--border);
     padding-left:0;
     padding-top:12px;
+  }
+
+  .update-datetime-grid{
+    grid-template-columns:1fr;
+    gap:10px;
   }
 
   .modal{

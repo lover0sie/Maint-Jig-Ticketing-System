@@ -370,7 +370,8 @@ async function sendTelegram({
     `Machine: ${machineId} — ${machineName}\n` +
     `Location: ${location}\n` +
     `Reported by: ${employeeName}\n\n` +
-    `Problem:\n${problemDescription}`;
+    `Problem:\n${problemDescription}` + 
+    `Link :\nhttps://lover0sie.github.io/Maint-Jig-Ticketing-System/maintenance-login.html`;
 
   // If image exists → send photo
   if (photoUrls.length > 0) {

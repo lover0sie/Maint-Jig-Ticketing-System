@@ -365,13 +365,13 @@ async function sendTelegram({
   const CHAT_ID = "-5223901778";
 
   const caption =
-    `New Maintenance Ticket\n\n` +
+    `*New Maintenance Ticket*\n\n` +
     `Ticket: ${ticketId}\n` +
     `Machine: ${machineId} — ${machineName}\n` +
     `Location: ${location}\n` +
     `Reported by: ${employeeName}\n\n` +
-    `Problem:\n${problemDescription}` + 
-    `Link :\nhttps://lover0sie.github.io/Maint-Jig-Ticketing-System/maintenance-login.html`;
+    `Problem:\n${problemDescription}\n\n` +
+    `Link:\nhttps://lover0sie.github.io/Maint-Jig-Ticketing-System/maintenance-login.html`;
 
   // If image exists → send photo
   if (photoUrls.length > 0) {
@@ -409,7 +409,8 @@ async function sendTelegram({
         },
         body: JSON.stringify({
           chat_id: CHAT_ID,
-          text: caption
+          text: caption,
+          parse_mode: "Markdown"
         })
       }
     );

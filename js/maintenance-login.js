@@ -96,8 +96,8 @@ loginForm.addEventListener("submit", async (e) => {
       return;
     }
 
-    showLoading("Login successful. Opening dashboard...");
-    window.location.href = "maintenance-dashboard.html";  
+    showLoading("Login successful. Opening overview...");
+    window.location.href = "maintenance-main.html";  
 
   } catch (err) {
     console.error(err);

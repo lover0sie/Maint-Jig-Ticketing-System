@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Maintenance Dashboard</title>
+  <title>Open Tickets</title>
   <link rel="stylesheet" href="css/maintenance-dashboard.css" />
 </head>
 <body>
@@ -23,9 +23,14 @@
         </span>
       </div>
 
-      <a href="maintenance-search.html" class="side-link">
-        <img src="images/search.png" alt="" class="nav-icon" aria-hidden="true" />
-        <span class="side-label">Search</span>
+      <a href="maintenance-main.html" class="side-link">
+        <img src="images/overview.png" alt="" class="nav-icon" aria-hidden="true" />
+        <span class="side-label">Overview</span>
+      </a>
+
+      <a href="maintenance-analytics.html" class="side-link">
+        <img src="images/analytics.png" alt="" class="nav-icon" aria-hidden="true" />
+        <span class="side-label">Data Analytics</span>
       </a>
 
       <nav class="side-nav" aria-label="Ticket status filters">
@@ -71,13 +76,27 @@
   <div class="page">
     <header class="topbar">
       <div>
-        <h1>Maintenance Dashboard</h1>
+        <h1 id="dashboardTitle">Open Tickets</h1>
       </div>
     </header>
 
     <div id="alert" class="alert"></div>
 
     <div class="filter-row">
+      <div class="filter-group search-group">
+        <label for="searchMachine">Search Machine / Location</label>
+        <div class="search-input-wrap">
+          <img src="images/search.png" alt="" aria-hidden="true" />
+          <input
+            type="text"
+            id="searchMachine"
+            placeholder="Search machine ID, machine name, or location"
+            maxlength="100"
+            autocomplete="off"
+          />
+        </div>
+      </div>
+
       <div class="filter-group">
         <label for="filterDate">Filter by Date</label>
         <input type="date" id="filterDate" />

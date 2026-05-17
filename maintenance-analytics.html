@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Search Tickets</title>
+  <title>Maintenance Data Analytics</title>
   <link rel="stylesheet" href="css/maintenance-dashboard.css" />
 </head>
 <body>
@@ -23,37 +23,42 @@
         </span>
       </div>
 
-      <a href="maintenance-search.html" class="side-link active">
-        <img src="images/search.png" alt="" class="nav-icon" aria-hidden="true" />
-        <span class="side-label">Search</span>
+      <a href="maintenance-main.html" class="side-link">
+        <img src="images/overview.png" alt="" class="nav-icon" aria-hidden="true" />
+        <span class="side-label">Overview</span>
+      </a>
+
+      <a href="maintenance-analytics.html" class="side-link active">
+        <img src="images/analytics.png" alt="" class="nav-icon" aria-hidden="true" />
+        <span class="side-label">Data Analytics</span>
       </a>
 
       <nav class="side-nav" aria-label="Ticket status filters">
-        <a class="chip" data-status="OPEN" href="maintenance-dashboard.html">
+        <a class="chip" data-status="OPEN" href="maintenance-dashboard.html?status=OPEN">
           <img src="images/open.png" alt="" class="status-dot" aria-hidden="true" />
           <span class="chip-label">Open</span>
           <span class="chip-count" id="count-OPEN">0</span>
         </a>
 
-        <a class="chip" data-status="IN_PROGRESS" href="maintenance-dashboard.html">
+        <a class="chip" data-status="IN_PROGRESS" href="maintenance-dashboard.html?status=IN_PROGRESS">
           <img src="images/in-progress.png" alt="" class="status-dot" aria-hidden="true" />
           <span class="chip-label">In Progress</span>
           <span class="chip-count" id="count-IN_PROGRESS">0</span>
         </a>
 
-        <a class="chip" data-status="WAITING_SPARE_PARTS" href="maintenance-dashboard.html">
+        <a class="chip" data-status="WAITING_SPARE_PARTS" href="maintenance-dashboard.html?status=WAITING_SPARE_PARTS">
           <img src="images/waiting-spare-parts.png" alt="" class="status-dot" aria-hidden="true" />
           <span class="chip-label">Waiting Spare Parts</span>
           <span class="chip-count" id="count-WAITING_SPARE_PARTS">0</span>
         </a>
 
-        <a class="chip" data-status="RESOLVED" href="maintenance-dashboard.html">
+        <a class="chip" data-status="RESOLVED" href="maintenance-dashboard.html?status=RESOLVED">
           <img src="images/resolved.png" alt="" class="status-dot" aria-hidden="true" />
           <span class="chip-label">Resolved</span>
           <span class="chip-count" id="count-RESOLVED">0</span>
         </a>
 
-        <a class="chip" data-status="CLOSED" href="maintenance-dashboard.html">
+        <a class="chip" data-status="CLOSED" href="maintenance-dashboard.html?status=CLOSED">
           <img src="images/closed.png" alt="" class="status-dot" aria-hidden="true" />
           <span class="chip-label">Closed</span>
           <span class="chip-count" id="count-CLOSED">0</span>
@@ -71,28 +76,48 @@
   <div class="page">
     <header class="topbar">
       <div>
-        <h1>Search Tickets</h1>
+        <h1>Data Analytics</h1>
+        <p>Machine breakdown time analysis</p>
       </div>
     </header>
 
     <div id="alert" class="alert"></div>
 
-    <div class="search-page-tools">
-      <label for="searchMachine">Search Machine / Location</label>
-      <div class="search-input-wrap">
-        <img src="images/search.png" alt="" aria-hidden="true" />
-        <input
-          type="text"
-          id="searchMachine"
-          placeholder="Search machine ID, machine name, or location"
-          maxlength="100"
-          autocomplete="off"
-        />
+    <div class="filter-row">
+      <div class="filter-group">
+        <label for="monthFilter">Month</label>
+        <input type="month" id="monthFilter" />
+      </div>
+
+      <div class="filter-actions analytics-filter-actions">
+        <button id="loadAnalyticsBtn" class="btn">Load Analytics</button>
       </div>
     </div>
 
-    <section id="ticketList" class="ticket-list">
-      <div class="empty">Loading tickets...</div>
+    <section class="analytics-card">
+      <div class="analytics-card-head">
+        <div>
+          <h2>Mean Time to Repair (MTTR)</h2>
+          <p>Total repair time divided by the number of closed tickets</p>
+        </div>
+      </div>
+      <div class="analytics-chart-wrap">
+        <canvas id="mttrChart" height="120"></canvas>
+        <div id="mttrEmpty" class="chart-empty hidden">No MTTR data for this month.</div>
+      </div>
+    </section>
+
+    <section class="analytics-card">
+      <div class="analytics-card-head">
+        <div>
+          <h2>Mean Time Between Failures (MTBF)</h2>
+          <p>Total operating time divided by the number of failures</p>
+        </div>
+      </div>
+      <div class="analytics-chart-wrap">
+        <canvas id="mtbfChart" height="120"></canvas>
+        <div id="mtbfEmpty" class="chart-empty hidden">No MTBF data for this month.</div>
+      </div>
     </section>
   </div>
 
@@ -103,6 +128,7 @@
     </div>
   </div>
 
-  <script type="module" src="js/maintenance-search.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module" src="js/maintenance-analytics.js"></script>
 </body>
 </html>

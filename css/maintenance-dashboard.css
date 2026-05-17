@@ -29,9 +29,12 @@
 
 body{
   margin:0;
+  min-height:100vh;
   background:
     radial-gradient(1000px 500px at 50% -10%, #dbe8ff, transparent 55%),
     var(--bg);
+  background-attachment:fixed;
+  background-repeat:no-repeat;
   color:var(--text);
 }
 
@@ -196,6 +199,19 @@ body.modal-open{
   object-fit:contain;
 }
 
+.nav-glyph{
+  flex:0 0 auto;
+  width:28px;
+  height:28px;
+  display:grid;
+  place-items:center;
+  border-radius:8px;
+  background:#eff6ff;
+  color:var(--primary);
+  font-size:13px;
+  font-weight:800;
+}
+
 .status-dot{
   width:28px;
   height:28px;
@@ -275,6 +291,7 @@ body.modal-open{
 }
 
 .filter-group input{
+  min-height:50px;
   padding:10px 12px;
   border:1px solid var(--border);
   border-radius:12px;
@@ -283,20 +300,8 @@ body.modal-open{
   background:#fff;
 }
 
-.search-page-tools{
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-  margin:12px 0 16px;
-}
-
-.search-page-tools label{
-  font-size:13px;
-  font-weight:700;
-  color:#374151;
-}
-
 .search-input-wrap{
+  min-height:50px;
   display:flex;
   align-items:center;
   gap:10px;
@@ -329,8 +334,19 @@ body.modal-open{
 }
 
 .filter-actions{
+  min-width:180px;
   display:flex;
   align-items:flex-end;
+}
+
+.filter-actions .btn{
+  width:100%;
+  min-height:50px;
+  padding:10px 14px;
+}
+
+.analytics-filter-actions{
+  min-width:140px;
 }
 
 .chip{
@@ -352,11 +368,19 @@ body.modal-open{
 .chip-label{
   white-space: nowrap;
   line-height: 1;
+  font-weight: 600;
 }
 
-.chip.active{
+.chip.active,
+.chip:hover,
+.chip:focus-visible{
   background:#f3f4f6;
   color:#1f2937;
+}
+
+.chip:focus-visible{
+  outline:2px solid rgba(29,78,216,.35);
+  outline-offset:2px;
 }
 
 .chip.active::before{
@@ -440,11 +464,65 @@ body.modal-open{
 }
 
 .ticket-card{
+  position:relative;
+  overflow:hidden;
   background:var(--card);
   border:1px solid var(--border);
   border-radius:18px;
   padding:16px;
   box-shadow:0 10px 24px rgba(17,24,39,.05);
+}
+
+.ticket-card::before{
+  content:"";
+  position:absolute;
+  inset:0 auto 0 0;
+  width:6px;
+  background:#d1d5db;
+}
+
+.ticket-card[data-line="PV"]::before{
+  background:#5b1384;
+}
+
+.ticket-card[data-line="Chiller"]::before{
+  background:#0891b2;
+}
+
+.ticket-card[data-line="Sub-Assembly"]::before{
+  background:#16a34a;
+}
+
+.ticket-card[data-line="WCCH"]::before{
+  background:#ca8a04;
+}
+
+.ticket-card[data-line="Production"]::before{
+  background:#f97316;
+}
+
+.ticket-card[data-line="Warehouse"]::before{
+  background:#64748b;
+}
+
+.ticket-card[data-line="Fabrication"]::before{
+  background:#db2777;
+}
+
+.ticket-card[data-line="Assembly"]::before{
+  background:#7c3aed;
+}
+
+.ticket-card[data-line="ACCH"]::before{
+  background:#0284c7;
+}
+
+.ticket-card[data-line="Packing"]::before{
+  background:#65a30d;
+}
+
+.ticket-card[data-line="QC"]::before{
+  background:#dc2626;
 }
 
 .ticket-head{
@@ -1371,4 +1449,341 @@ input[type="time"]:focus{
   background: none;
   border: none;
   cursor: pointer;
+}
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.analytics-card {
+  background: #fff;
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+  margin-bottom: 16px;
+}
+
+.analytics-card h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.analytics-card-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+  margin-bottom:14px;
+}
+
+.analytics-card-head h2{
+  margin:0;
+}
+
+.analytics-card-head p{
+  margin:6px 0 0;
+  color:var(--muted);
+  font-size:13px;
+}
+
+.analytics-chart-wrap{
+  position:relative;
+  min-height:320px;
+}
+
+.analytics-chart-wrap canvas{
+  width:100% !important;
+}
+
+.analytics-chart-wrap canvas.hidden{
+  display:none !important;
+}
+
+.chart-empty{
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
+  border:1px dashed var(--border);
+  border-radius:14px;
+  background:#f8fafc;
+  color:var(--muted);
+  font-size:14px;
+  font-weight:600;
+}
+
+.chart-empty.hidden{
+  display:none;
+}
+
+.analytics-number {
+  font-size: 32px;
+  font-weight: 800;
+}
+
+.analytics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.analytics-table th,
+.analytics-table td {
+  padding: 10px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+.analytics-table th {
+  background: #f8fafc;
+  font-weight: 700;
+}
+
+.overview-topbar{
+  align-items:center;
+}
+
+.overview-page .page{
+  max-width:1160px;
+  padding-top:20px;
+  padding-bottom:28px;
+}
+
+.overview-page .topbar{
+  margin-bottom:14px;
+}
+
+.overview-page .topbar h1{
+  font-size:24px;
+}
+
+.overview-page .topbar p{
+  margin-top:6px;
+  font-size:14px;
+}
+
+.overview-actions{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  gap:10px;
+}
+
+.overview-actions .btn{
+  text-decoration:none;
+}
+
+.overview-status-grid{
+  display:grid;
+  grid-template-columns:repeat(5, minmax(0, 1fr));
+  gap:12px;
+  margin:14px 0 16px;
+}
+
+.overview-status-card{
+  position:relative;
+  min-height:96px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  overflow:hidden;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:#fff;
+  color:var(--text);
+  padding:14px 16px;
+  text-decoration:none;
+  box-shadow:0 10px 24px rgba(17,24,39,.05);
+}
+
+.overview-status-card::before{
+  content:"";
+  position:absolute;
+  inset:0 auto 0 0;
+  width:5px;
+  background:var(--primary);
+}
+
+.overview-status-card span{
+  color:#4b5563;
+  font-size:13px;
+  font-weight:700;
+  line-height:1.25;
+}
+
+.overview-status-card strong{
+  font-size:32px;
+  line-height:1;
+}
+
+.overview-status-card:hover{
+  transform:translateY(-1px);
+  box-shadow:0 14px 30px rgba(17,24,39,.09);
+}
+
+.overview-status-card[data-status="OPEN"]::before{
+  background:var(--open);
+}
+
+.overview-status-card[data-status="IN_PROGRESS"]::before{
+  background:var(--progress);
+}
+
+.overview-status-card[data-status="WAITING_SPARE_PARTS"]::before{
+  background:var(--waiting);
+}
+
+.overview-status-card[data-status="RESOLVED"]::before{
+  background:var(--resolved);
+}
+
+.overview-status-card[data-status="CLOSED"]::before{
+  background:var(--closed);
+}
+
+.overview-panel{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:18px;
+  box-shadow:0 10px 25px rgba(15,23,42,.08);
+}
+
+.overview-panel-head{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:14px;
+}
+
+.overview-panel h2{
+  margin:0;
+  font-size:18px;
+}
+
+.overview-panel p{
+  margin:6px 0 0;
+  color:var(--muted);
+  font-size:13px;
+}
+
+.overview-chart-layout{
+  display:grid;
+  grid-template-columns:minmax(260px, 380px) minmax(0, 1fr);
+  gap:20px;
+  align-items:start;
+}
+
+.overview-chart-wrap{
+  height:320px;
+  min-height:280px;
+}
+
+.overview-chart-wrap canvas{
+  max-height:100%;
+}
+
+.overview-breakdown-list{
+  max-height:320px;
+  overflow:auto;
+  display:grid;
+  gap:8px;
+  padding-right:4px;
+}
+
+.overview-breakdown-item{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  padding:9px 0;
+  border-bottom:1px solid var(--border);
+}
+
+.overview-breakdown-item strong,
+.overview-breakdown-item span{
+  display:block;
+}
+
+.overview-breakdown-item strong{
+  font-size:13px;
+  color:#1f2937;
+}
+
+.overview-breakdown-item span{
+  margin-top:3px;
+  color:var(--muted);
+  font-size:12px;
+}
+
+.overview-color-dot{
+  width:12px;
+  height:12px;
+  flex:0 0 auto;
+  margin-top:3px;
+  border-radius:50%;
+}
+
+@media (max-width: 700px) {
+  .overview-page .page{
+    min-height:auto;
+    padding-top:72px;
+  }
+
+  .overview-topbar{
+    align-items:flex-start;
+  }
+
+  .overview-actions{
+    width:100%;
+    justify-content:stretch;
+  }
+
+  .overview-actions .btn{
+    flex:1 1 auto;
+    text-align:center;
+  }
+
+  .overview-status-grid{
+    grid-template-columns:1fr;
+  }
+
+  .overview-status-card{
+    min-height:82px;
+  }
+
+  .overview-chart-layout{
+    grid-template-columns:1fr;
+  }
+
+  .overview-chart-wrap{
+    height:300px;
+  }
+
+  .overview-breakdown-list{
+    max-height:300px;
+  }
+
+  .overview-panel{
+    padding:14px;
+  }
+
+  .analytics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .analytics-card {
+    overflow-x: auto;
+  }
+
+  .analytics-card-head{
+    display:block;
+  }
+
+  .analytics-chart-wrap{
+    min-height:280px;
+    min-width:520px;
+  }
 }

@@ -58,6 +58,7 @@ const menuToggle = el("menuToggle");
 const sidebarBackdrop = el("sidebarBackdrop");
 const ticketList = el("ticketList");
 const alertEl = el("alert");
+const dashboardTitle = el("dashboardTitle");
 
 const updateModal = el("updateModal");
 const closeModalBtn = el("closeModalBtn");
@@ -90,7 +91,8 @@ const updateDate = el("updateDate");
 const updateTime = el("updateTime");
 
 let currentUserProfile = null;
-let currentStatusFilter = "OPEN";
+const requestedStatus = new URLSearchParams(window.location.search).get("status");
+let currentStatusFilter = STATUS_LABELS[requestedStatus] ? requestedStatus : "OPEN";
 let selectedTicket = null;
 let saveInFlight = false;
 let selectedPhotoFiles = [];
@@ -233,6 +235,11 @@ async function waitForMinimumDuration(startTime, minDurationMs) {
 
 function setActiveStatusFilter(status) {
   currentStatusFilter = status;
+  const title = getStatusTitle(status);
+
+  if (dashboardTitle) dashboardTitle.textContent = title;
+  document.title = title;
+
   document.querySelectorAll(".chip").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.status === status);
   });
@@ -266,6 +273,10 @@ function escapeHtml(value) {
 
 function formatStatus(status) {
   return STATUS_LABELS[status] || status;
+}
+
+function getStatusTitle(status) {
+  return `${formatStatus(status)} Tickets`;
 }
 
 function formatDateTime(ts) {
@@ -453,9 +464,7 @@ logoutBtn.addEventListener("click", async () => {
 
 document.querySelectorAll(".chip").forEach((btn) => {
   btn.addEventListener("click", async () => {
-    document.querySelectorAll(".chip").forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
-    currentStatusFilter = btn.dataset.status;
+    setActiveStatusFilter(btn.dataset.status);
     setSidebarOpen(false);
     await loadStatusCounts();
     await loadTickets(currentStatusFilter);
@@ -518,9 +527,10 @@ async function loadTickets(status) {
 
     ticketList.innerHTML = docs.map((t) => {
     const latestPhotos = Array.isArray(t.latestPhotos) ? t.latestPhotos : [];
+    const line = t.machine?.location || "";
 
     return `
-      <article class="ticket-card">
+      <article class="ticket-card" data-line="${escapeHtml(line)}">
         <div class="ticket-head">
           <div>
             <h3 class="ticket-title">${escapeHtml(t.ticketId || "-")}</h3>
@@ -892,6 +902,7 @@ onAuthStateChanged(auth, async (user) => {
     if (sideUserName) sideUserName.textContent = profile.name || "Maintenance";
     if (sideUserEmail) sideUserEmail.textContent = user.email || profile.email || profile.employeeId || "Maintenance";
 
+    setActiveStatusFilter(currentStatusFilter);
     await loadStatusCounts();
     await loadTickets(currentStatusFilter);
   } catch (err) {

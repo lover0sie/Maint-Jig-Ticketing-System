@@ -983,7 +983,7 @@ input[type="time"]:focus{
 
   .topbar h1{
     font-size:21px;
-    padding-left:54px;
+    padding-left:0px;
   }
 
   .filter-row{
@@ -996,6 +996,17 @@ input[type="time"]:focus{
   .filter-actions,
   .filter-actions .btn{
     width:100%;
+    min-width:0;
+  }
+
+  .filter-group input,
+  .search-input-wrap{
+    width:100%;
+    max-width:100%;
+  }
+
+  .search-input-wrap input{
+    min-width:0;
   }
 
   .ticket-card{

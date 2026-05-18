@@ -309,6 +309,10 @@ body.modal-open{
 .date-filter-group input[type="date"]{
   height:50px;
   max-width:100%;
+  min-height:50px;
+  line-height:1.2;
+  appearance:none;
+  -webkit-appearance:none;
 }
 
 .search-input-wrap{

@@ -284,6 +284,11 @@ body.modal-open{
   flex:1 1 280px;
 }
 
+.date-filter-group,
+.filter-actions{
+  flex:0 0 180px;
+}
+
 .filter-group label{
   font-size:13px;
   font-weight:600;
@@ -291,6 +296,7 @@ body.modal-open{
 }
 
 .filter-group input{
+  width:100%;
   min-height:50px;
   padding:10px 12px;
   border:1px solid var(--border);
@@ -298,6 +304,11 @@ body.modal-open{
   font-size:14px;
   font-family:inherit;
   background:#fff;
+}
+
+.date-filter-group input[type="date"]{
+  height:50px;
+  max-width:100%;
 }
 
 .search-input-wrap{

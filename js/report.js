@@ -361,7 +361,7 @@ async function sendTelegram({
   photoUrls = []
 }) {
 
-  const BOT_TOKEN = "8241324978:AAGL8f_LqUmXPtwrmxSB2v6rKx0Tuv6jVl0"; // <-- replace after revoking old
+  const BOT_TOKEN = "8241324978:AAHSQrnQzaNn0GszJ9v881N6wQ1i1SomaEs"; // <-- replace after revoking old
   const CHAT_ID = "-5223901778";
 
   const caption =

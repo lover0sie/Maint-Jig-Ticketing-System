@@ -612,6 +612,8 @@ body.modal-open{
 
 .ticket-actions{
   display:flex;
+  flex-wrap:wrap;
+  gap:10px;
   justify-content:flex-end;
   margin-top:8px;
 }
@@ -637,6 +639,17 @@ body.modal-open{
   background:#fff;
   color:var(--text);
   border:1px solid var(--border);
+}
+
+.btn-danger{
+  background:linear-gradient(180deg, #dc2626, #b91c1c);
+  color:#fff;
+  border:0;
+}
+
+.btn-danger:hover,
+.btn-danger:focus-visible{
+  background:linear-gradient(180deg, #b91c1c, #991b1b);
 }
 
 .empty{
@@ -899,6 +912,66 @@ input[type="time"]:focus{
   margin-top:16px;
 }
 
+.confirm-modal{
+  position:fixed;
+  inset:0;
+  display:grid;
+  place-items:center;
+  padding:16px;
+  background:rgba(17,24,39,.45);
+  z-index:3600;
+}
+
+.confirm-modal.hidden{
+  display:none;
+}
+
+.confirm-card{
+  width:min(100%, 420px);
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:22px;
+  text-align:center;
+  box-shadow:0 20px 44px rgba(17,24,39,.18);
+}
+
+.confirm-icon{
+  width:42px;
+  height:42px;
+  display:grid;
+  place-items:center;
+  margin:0 auto 12px;
+  border-radius:50%;
+  background:#fee2e2;
+  color:#b91c1c;
+  font-size:24px;
+  font-weight:800;
+}
+
+.confirm-card h2{
+  margin:0 0 8px;
+  font-size:20px;
+}
+
+.confirm-card p{
+  margin:0;
+  color:#4b5563;
+  font-size:14px;
+  line-height:1.5;
+}
+
+.confirm-actions{
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  margin-top:18px;
+}
+
+.confirm-actions .btn{
+  min-width:108px;
+}
+
 @media (max-width: 700px){
   body.sidebar-open{
     overflow:hidden;
@@ -1072,6 +1145,20 @@ input[type="time"]:focus{
     background:#fff;
     padding-top:10px;
     padding-bottom:2px;
+  }
+
+  .confirm-card{
+    padding:18px;
+    border-radius:16px;
+  }
+
+  .confirm-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+  }
+
+  .confirm-actions .btn{
+    min-width:0;
   }
 }
 

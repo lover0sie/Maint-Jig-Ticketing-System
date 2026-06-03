@@ -2,13 +2,31 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isActiveMaintenance() {
+      return signedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.active == true
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "maintenance";
+    }
+
     match /tickets/{docId} {
       allow create: if true;
-      allow read, update, delete: if false;
+      allow read, update, delete: if isActiveMaintenance();
+
+      match /updates/{updateId} {
+        allow read, create, update, delete: if isActiveMaintenance();
+      }
     }
 
     match /counters/{docId} {
       allow read, write: if true; // (simple) tighten later
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn() && request.auth.uid == userId;
     }
   }
 }

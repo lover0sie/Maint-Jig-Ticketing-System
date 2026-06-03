@@ -13,6 +13,7 @@ import {
   getDoc,
   updateDoc,
   addDoc,
+  writeBatch,
   serverTimestamp,
   getCountFromServer,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
@@ -87,6 +88,11 @@ const imagePreviewModal = el("imagePreviewModal");
 const previewLargeImage = el("previewLargeImage");
 const closeImagePreview = el("closeImagePreview");
 
+const deleteConfirmModal = el("deleteConfirmModal");
+const deleteConfirmText = el("deleteConfirmText");
+const cancelDeleteBtn = el("cancelDeleteBtn");
+const confirmDeleteBtn = el("confirmDeleteBtn");
+
 const updateDate = el("updateDate");
 const updateTime = el("updateTime");
 
@@ -95,6 +101,7 @@ const requestedStatus = new URLSearchParams(window.location.search).get("status"
 let currentStatusFilter = STATUS_LABELS[requestedStatus] ? requestedStatus : "OPEN";
 let selectedTicket = null;
 let saveInFlight = false;
+let deleteInFlight = false;
 let selectedPhotoFiles = [];
 let alertTimeout = null;
 
@@ -139,6 +146,41 @@ function openImagePreview(url) {
 function closeImagePreviewModal() {
   previewLargeImage.src = "";
   imagePreviewModal.classList.add("hidden");
+}
+
+function askDeleteConfirmation(ticketLabel) {
+  return new Promise((resolve) => {
+    deleteConfirmText.textContent = `Are you sure you want to delete ticket ${ticketLabel}? This will permanently remove the ticket and its update history from the database.`;
+    deleteConfirmModal.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+    document.body.style.overflow = "hidden";
+    confirmDeleteBtn.focus();
+
+    const closeConfirm = (confirmed) => {
+      deleteConfirmModal.classList.add("hidden");
+      document.body.classList.remove("modal-open");
+      document.body.style.overflow = "";
+      confirmDeleteBtn.removeEventListener("click", onConfirm);
+      cancelDeleteBtn.removeEventListener("click", onCancel);
+      deleteConfirmModal.removeEventListener("click", onBackdrop);
+      document.removeEventListener("keydown", onKeydown);
+      resolve(confirmed);
+    };
+
+    const onConfirm = () => closeConfirm(true);
+    const onCancel = () => closeConfirm(false);
+    const onBackdrop = (event) => {
+      if (event.target === deleteConfirmModal) closeConfirm(false);
+    };
+    const onKeydown = (event) => {
+      if (event.key === "Escape") closeConfirm(false);
+    };
+
+    confirmDeleteBtn.addEventListener("click", onConfirm);
+    cancelDeleteBtn.addEventListener("click", onCancel);
+    deleteConfirmModal.addEventListener("click", onBackdrop);
+    document.addEventListener("keydown", onKeydown);
+  });
 }
 
 closeImagePreview.addEventListener("click", closeImagePreviewModal);
@@ -528,6 +570,7 @@ async function loadTickets(status) {
     ticketList.innerHTML = docs.map((t) => {
     const latestPhotos = Array.isArray(t.latestPhotos) ? t.latestPhotos : [];
     const line = t.machine?.location || "";
+    const deleteDisabled = t.status === "CLOSED" ? "disabled" : "";
 
     return `
       <article class="ticket-card" data-line="${escapeHtml(line)}">
@@ -582,6 +625,7 @@ async function loadTickets(status) {
         </div>
 
         <div class="ticket-actions">
+          <button class="btn btn-danger delete-ticket-btn" data-ticket-doc-id="${escapeHtml(t.id)}" ${deleteDisabled}>Delete Ticket</button>
           <button class="btn open-ticket-btn" data-ticket-id="${escapeHtml(t.ticketId)}">Update Status</button>
         </div>
       </article>
@@ -604,10 +648,62 @@ async function loadTickets(status) {
       });
     });
 
+    document.querySelectorAll(".delete-ticket-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const ticket = docs.find((x) => x.id === btn.dataset.ticketDocId);
+        if (ticket) await deleteTicket(ticket);
+      });
+    });
+
   } catch (err) {
     console.error(err);
     ticketList.innerHTML = `<div class="empty">Failed to load tickets.</div>`;
     showAlert("Could not load tickets. Check Firestore indexes/rules.", "err");
+  }
+}
+
+async function deleteTicket(ticket) {
+  if (!ticket || deleteInFlight) return;
+
+  const ticketLabel = ticket.ticketId || ticket.id || "this ticket";
+  const confirmed = await askDeleteConfirmation(ticketLabel);
+
+  if (!confirmed) return;
+
+  deleteInFlight = true;
+  const deleteStartedAt = Date.now();
+
+  try {
+    clearAlert();
+    showLoading(`Deleting ticket ${ticketLabel}...`);
+
+    const updateSnap = await getDocs(collection(db, "tickets", ticket.id, "updates"));
+    const refsToDelete = [
+      ...updateSnap.docs.map((updateDoc) => updateDoc.ref),
+      doc(db, "tickets", ticket.id)
+    ];
+
+    for (let i = 0; i < refsToDelete.length; i += 500) {
+      const batch = writeBatch(db);
+      refsToDelete.slice(i, i + 500).forEach((docRef) => batch.delete(docRef));
+      await batch.commit();
+    }
+
+    await waitForMinimumDuration(deleteStartedAt, UPDATE_LOADING_MIN_MS);
+    showSuccessLoading(`Ticket ${ticketLabel} deleted successfully.`);
+    await wait(UPDATE_SUCCESS_MS);
+
+    await loadStatusCounts();
+    await loadTickets(currentStatusFilter);
+  } catch (err) {
+    console.error("DELETE TICKET FAILED:", err);
+    await waitForMinimumDuration(deleteStartedAt, UPDATE_LOADING_MIN_MS);
+    showErrorLoading("Failed to delete ticket.");
+    await wait(UPDATE_ERROR_MS);
+    showAlert(`Failed to delete ticket: ${err.message}`, "err");
+  } finally {
+    hideLoading();
+    deleteInFlight = false;
   }
 }
 

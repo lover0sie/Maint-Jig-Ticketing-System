@@ -18,6 +18,7 @@ import { auth, db } from "./firebase.js";
 
 const el = (id) => document.getElementById(id);
 
+
 const OPERATING_HOURS_PER_DAY = 8;
 const WORKING_DAYS_PER_MONTH = 22;
 
@@ -121,6 +122,25 @@ const loadingOverlay = el("loadingOverlay");
 const loadingText = el("loadingText");
 const mttrEmpty = el("mttrEmpty");
 const mtbfEmpty = el("mtbfEmpty");
+const monthFilter = el("monthFilter");
+const exportExcelBtn = el("exportExcelBtn");
+
+function toDateFromUpdate(updateDate, updateTime) {
+  if (!updateDate || !updateTime) return null;
+  return new Date(`${updateDate}T${updateTime}`);
+}
+
+function minutesBetween(start, end) {
+  if (!start || !end) return 0;
+  return Math.max(0, Math.round((end - start) / 60000));
+}
+
+function safeSheetName(name) {
+  return String(name || "Unknown")
+    .replace(/[\\/?*[\]:]/g, "-")
+    .substring(0, 31);
+}
+
 
 function setSidebarOpen(isOpen) {
   document.body.classList.toggle("sidebar-open", isOpen);
@@ -161,6 +181,30 @@ function showAlert(msg, kind = "err") {
   if (!alertEl) return;
   alertEl.textContent = msg;
   alertEl.className = `alert show ${kind}`;
+}
+
+async function getTicketClosedDate(ticketId) {
+  const updateSnap = await getDocs(
+    query(
+      collection(db, "tickets", ticketId, "updates"),
+      orderBy("createdAt", "asc")
+    )
+  );
+
+  let closedAt = null;
+
+  updateSnap.forEach((updateDoc) => {
+    const update = updateDoc.data();
+
+    if (update.status === "CLOSED") {
+      closedAt =
+        parseManualDateTime(update.updateDate, update.updateTime) ||
+        update.createdAt?.toDate?.() ||
+        null;
+    }
+  });
+
+  return closedAt;
 }
 
 async function loadStatusCounts() {
@@ -280,70 +324,79 @@ function getSharedChartOptions(unitLabel, tooltipLabel) {
 }
 
 async function loadAnalytics() {
-  const selectedMonth = el("monthFilter").value; // yyyy-mm
-  const summaryMap = {};
+  showLoading("Loading analytics...");
 
-  MACHINES.forEach(([id]) => {
-    summaryMap[id] = {
-      count: 0,
-      totalMs: 0
-    };
-  });
+  try {
+    const selectedMonth = el("monthFilter").value; // yyyy-mm
+    const summaryMap = {};
 
-  const ticketSnap = await getDocs(
-    query(collection(db, "tickets"), orderBy("createdAt", "desc"))
-  );
-
-  for (const ticketDoc of ticketSnap.docs) {
-    const ticket = {
-      id: ticketDoc.id,
-      ...ticketDoc.data()
-    };
-
-    if (ticket.status !== "CLOSED") continue;
-    if (!ticket.createdAt?.toDate) continue;
-
-    const openedAt = ticket.createdAt.toDate();
-    const machineId = ticket.machine?.id;
-
-    if (!machineId) continue;
-
-    const updateSnap = await getDocs(
-      query(collection(db, "tickets", ticket.id, "updates"), orderBy("createdAt", "asc"))
-    );
-
-    let closedAt = null;
-
-    updateSnap.forEach((updateDoc) => {
-      const update = updateDoc.data();
-
-      if (update.status === "CLOSED") {
-        closedAt =
-          parseManualDateTime(update.updateDate, update.updateTime) ||
-          update.createdAt?.toDate?.() ||
-          null;
-      }
+    MACHINES.forEach(([id]) => {
+      summaryMap[id] = {
+        count: 0,
+        totalMs: 0
+      };
     });
 
-    if (!closedAt) continue;
+    const ticketSnap = await getDocs(
+      query(collection(db, "tickets"), orderBy("createdAt", "desc"))
+    );
 
-    if (selectedMonth) {
-      const closedMonth = getLocalMonthKey(closedAt);
-      if (closedMonth !== selectedMonth) continue;
+    for (const ticketDoc of ticketSnap.docs) {
+      const ticket = {
+        id: ticketDoc.id,
+        ...ticketDoc.data()
+      };
+
+      if (ticket.status !== "CLOSED") continue;
+      if (!ticket.createdAt?.toDate) continue;
+
+      const openedAt = ticket.createdAt.toDate();
+      const machineId = ticket.machine?.id;
+
+      if (!machineId) continue;
+
+      const updateSnap = await getDocs(
+        query(collection(db, "tickets", ticket.id, "updates"), orderBy("createdAt", "asc"))
+      );
+
+      let closedAt = null;
+
+      updateSnap.forEach((updateDoc) => {
+        const update = updateDoc.data();
+
+        if (update.status === "CLOSED") {
+          closedAt =
+            parseManualDateTime(update.updateDate, update.updateTime) ||
+            update.createdAt?.toDate?.() ||
+            null;
+        }
+      });
+
+      if (!closedAt) continue;
+
+      if (selectedMonth) {
+        const closedMonth = getLocalMonthKey(closedAt);
+        if (closedMonth !== selectedMonth) continue;
+      }
+
+      const breakdownMs = closedAt - openedAt;
+      if (breakdownMs <= 0) continue;
+
+      if (!summaryMap[machineId]) {
+        summaryMap[machineId] = { count: 0, totalMs: 0 };
+      }
+
+      summaryMap[machineId].count += 1;
+      summaryMap[machineId].totalMs += breakdownMs;
     }
 
-    const breakdownMs = closedAt - openedAt;
-    if (breakdownMs <= 0) continue;
-
-    if (!summaryMap[machineId]) {
-      summaryMap[machineId] = { count: 0, totalMs: 0 };
-    }
-
-    summaryMap[machineId].count += 1;
-    summaryMap[machineId].totalMs += breakdownMs;
+    renderReliabilityCharts(summaryMap);
+  } catch (err) {
+    console.error(err);
+    showAlert(`Could not load analytics: ${err.message}`, "err");
+  } finally {
+    hideLoading();
   }
-
-  renderReliabilityCharts(summaryMap);
 }
 
 function renderReliabilityCharts(summaryMap) {
@@ -496,7 +549,157 @@ if (logoutBtn) {
   });
 }
 
+async function exportMonthlyMttrMtbf() {
+  const selectedMonth = monthFilter.value;
+
+  if (!selectedMonth) {
+    showAlert("Please choose month.", "err");
+    return;
+  }
+
+  showLoading("Exporting MTTR / MTBF Excel...");
+
+  try {
+    const summaryMap = {};
+
+    MACHINES.forEach(([id, name, location]) => {
+      summaryMap[id] = {
+        machineId: id,
+        machineName: name,
+        location,
+        closedTickets: 0,
+        totalBreakdownMs: 0
+      };
+    });
+
+    const ticketSnap = await getDocs(
+      query(collection(db, "tickets"), orderBy("createdAt", "desc"))
+    );
+
+    for (const ticketDoc of ticketSnap.docs) {
+      const ticket = {
+        id: ticketDoc.id,
+        ...ticketDoc.data()
+      };
+
+      if (ticket.status !== "CLOSED") continue;
+      if (!ticket.createdAt?.toDate) continue;
+
+      const openedAt = ticket.createdAt.toDate();
+      const closedAt = await getTicketClosedDate(ticket.id);
+
+      if (!closedAt) continue;
+
+      if (getLocalMonthKey(closedAt) !== selectedMonth) continue;
+
+      const machineId = ticket.machine?.id;
+      if (!machineId) continue;
+
+      const breakdownMs = closedAt - openedAt;
+      if (breakdownMs <= 0) continue;
+
+      if (!summaryMap[machineId]) {
+        summaryMap[machineId] = {
+          machineId,
+          machineName: ticket.machine?.name || "-",
+          location: ticket.machine?.location || "-",
+          closedTickets: 0,
+          totalBreakdownMs: 0
+        };
+      }
+
+      summaryMap[machineId].closedTickets += 1;
+      summaryMap[machineId].totalBreakdownMs += breakdownMs;
+    }
+
+    const rows = Object.values(summaryMap).map((m) => {
+      const totalBreakdownHours = m.totalBreakdownMs / 1000 / 60 / 60;
+      const mttrHours =
+        m.closedTickets > 0 ? totalBreakdownHours / m.closedTickets : 0;
+      const mtbfHours =
+        m.closedTickets > 0 ? MONTHLY_OPERATING_HOURS / m.closedTickets : 0;
+
+      return {
+        "Month": selectedMonth,
+        "Machine ID": m.machineId,
+        "Machine": m.machineName,
+        "Location": m.location,
+        "Closed Tickets / Failures": m.closedTickets,
+        "Total Breakdown Time (hr)": Number(totalBreakdownHours.toFixed(2)),
+        "Monthly Operating Time (hr)": MONTHLY_OPERATING_HOURS,
+        "MTTR (hr)": Number(mttrHours.toFixed(2)),
+        "MTBF (hr)": Number(mtbfHours.toFixed(2))
+      };
+    });
+
+    const totalFailures = rows.reduce(
+      (sum, r) => sum + r["Closed Tickets / Failures"],
+      0
+    );
+
+    const totalBreakdownHours = rows.reduce(
+      (sum, r) => sum + r["Total Breakdown Time (hr)"],
+      0
+    );
+
+    rows.push({});
+    rows.push({
+      "Month": selectedMonth,
+      "Machine ID": "TOTAL",
+      "Closed Tickets / Failures": totalFailures,
+      "Total Breakdown Time (hr)": Number(totalBreakdownHours.toFixed(2)),
+      "Monthly Operating Time (hr)": MONTHLY_OPERATING_HOURS * MACHINES.length,
+      "MTTR (hr)": totalFailures > 0
+        ? Number((totalBreakdownHours / totalFailures).toFixed(2))
+        : 0,
+      "MTBF (hr)": totalFailures > 0
+        ? Number(((MONTHLY_OPERATING_HOURS * MACHINES.length) / totalFailures).toFixed(2))
+        : 0
+    });
+
+    const mttrRows = rows.map((r) => ({
+      "Month": r["Month"],
+      "Machine ID": r["Machine ID"],
+      "Machine": r["Machine"],
+      "Location": r["Location"],
+      "Closed Tickets / Failures": r["Closed Tickets / Failures"],
+      "Total Breakdown Time (hr)": r["Total Breakdown Time (hr)"],
+      "MTTR (hr)": r["MTTR (hr)"]
+    }));
+
+    const mtbfRows = rows.map((r) => ({
+      "Month": r["Month"],
+      "Machine ID": r["Machine ID"],
+      "Machine": r["Machine"],
+      "Location": r["Location"],
+      "Closed Tickets / Failures": r["Closed Tickets / Failures"],
+      "Monthly Operating Time (hr)": r["Monthly Operating Time (hr)"],
+      "MTBF (hr)": r["MTBF (hr)"]
+    }));
+
+    const wb = XLSX.utils.book_new();
+
+    const mttrWs = XLSX.utils.json_to_sheet(mttrRows);
+    const mtbfWs = XLSX.utils.json_to_sheet(mtbfRows);
+
+    XLSX.utils.book_append_sheet(wb, mttrWs, "MTTR");
+    XLSX.utils.book_append_sheet(wb, mtbfWs, "MTBF");
+
+    XLSX.writeFile(wb, `Monthly_MTTR_MTBF_${selectedMonth}.xlsx`);
+
+    hideLoading();
+
+  } catch (err) {
+    console.error(err);
+    hideLoading();
+    showAlert(`Failed to export Excel: ${err.message}`, "err");
+  }
+}
+
+exportExcelBtn.addEventListener("click", exportMonthlyMttrMtbf);
+
 el("loadAnalyticsBtn").addEventListener("click", loadAnalytics);
+
 el("monthFilter").addEventListener("change", loadAnalytics);
 
 el("monthFilter").value = getLocalMonthKey(new Date());

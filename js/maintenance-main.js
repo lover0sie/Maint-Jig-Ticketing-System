@@ -153,6 +153,31 @@ function parseManualDateTime(dateStr, timeStr) {
   return new Date(`${dateStr}T${timeStr}:00+08:00`);
 }
 
+function getTimestampDate(value) {
+  return value?.toDate?.() || null;
+}
+
+async function getClosedAtFromUpdates(ticketId) {
+  const updateSnap = await getDocs(
+    query(collection(db, "tickets", ticketId, "updates"), orderBy("createdAt", "asc"))
+  );
+
+  let closedAt = null;
+
+  updateSnap.forEach((updateDoc) => {
+    const update = updateDoc.data();
+
+    if (update.status === "CLOSED") {
+      closedAt =
+        parseManualDateTime(update.updateDate, update.updateTime) ||
+        getTimestampDate(update.createdAt) ||
+        null;
+    }
+  });
+
+  return closedAt;
+}
+
 function getEmployeeId(profile, user) {
   return profile.employeeId || user.email?.split("@")[0] || "-";
 }
@@ -183,42 +208,31 @@ async function loadBreakdownSummary() {
   });
 
   const ticketSnap = await getDocs(
-    query(collection(db, "tickets"), orderBy("createdAt", "desc"))
+    query(collection(db, "tickets"), where("status", "==", "CLOSED"))
   );
 
-  for (const ticketDoc of ticketSnap.docs) {
+  await Promise.all(ticketSnap.docs.map(async (ticketDoc) => {
     const ticket = {
       id: ticketDoc.id,
       ...ticketDoc.data()
     };
 
-    if (ticket.status !== "CLOSED") continue;
-    if (!ticket.createdAt?.toDate) continue;
+    const openedAt = getTimestampDate(ticket.createdAt);
+    if (!openedAt) return;
 
     const machineId = ticket.machine?.id;
-    if (!machineId) continue;
+    if (!machineId) return;
 
-    const updateSnap = await getDocs(
-      query(collection(db, "tickets", ticket.id, "updates"), orderBy("createdAt", "asc"))
-    );
+    const closedAt =
+      parseManualDateTime(ticket.closedDate, ticket.closedTime) ||
+      getTimestampDate(ticket.closedAt) ||
+      getTimestampDate(ticket.latestUpdatedAt) ||
+      await getClosedAtFromUpdates(ticket.id);
 
-    let closedAt = null;
+    if (!closedAt) return;
 
-    updateSnap.forEach((updateDoc) => {
-      const update = updateDoc.data();
-
-      if (update.status === "CLOSED") {
-        closedAt =
-          parseManualDateTime(update.updateDate, update.updateTime) ||
-          update.createdAt?.toDate?.() ||
-          null;
-      }
-    });
-
-    if (!closedAt) continue;
-
-    const breakdownMs = closedAt - ticket.createdAt.toDate();
-    if (breakdownMs <= 0) continue;
+    const breakdownMs = closedAt - openedAt;
+    if (breakdownMs <= 0) return;
 
     if (!summaryMap[machineId]) {
       summaryMap[machineId] = {
@@ -229,7 +243,7 @@ async function loadBreakdownSummary() {
 
     summaryMap[machineId].count += 1;
     summaryMap[machineId].totalMs += breakdownMs;
-  }
+  }));
 
   return MACHINES.map(([id, name, location]) => {
     const data = summaryMap[id] || { count: 0, totalMs: 0 };
@@ -303,8 +317,10 @@ async function loadOverview() {
   showLoading("Loading overview...");
 
   try {
-    await loadStatusCounts();
-    const machineSummaries = await loadBreakdownSummary();
+    const [, machineSummaries] = await Promise.all([
+      loadStatusCounts(),
+      loadBreakdownSummary()
+    ]);
     renderBreakdownChart(machineSummaries);
   } catch (err) {
     console.error(err);

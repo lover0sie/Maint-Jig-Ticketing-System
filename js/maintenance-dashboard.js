@@ -275,12 +275,26 @@ async function waitForMinimumDuration(startTime, minDurationMs) {
   }
 }
 
-function setActiveStatusFilter(status) {
+function updateStatusUrl(status, mode = "push") {
+  const url = new URL(window.location.href);
+  url.searchParams.set("status", status);
+
+  if (mode === "replace") {
+    window.history.replaceState({ status }, "", url);
+    return;
+  }
+
+  window.history.pushState({ status }, "", url);
+}
+
+function setActiveStatusFilter(status, urlMode = "push") {
   currentStatusFilter = status;
   const title = getStatusTitle(status);
 
   if (dashboardTitle) dashboardTitle.textContent = title;
   document.title = title;
+
+  if (urlMode) updateStatusUrl(status, urlMode);
 
   document.querySelectorAll(".chip").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.status === status);
@@ -511,6 +525,14 @@ document.querySelectorAll(".chip").forEach((btn) => {
     await loadStatusCounts();
     await loadTickets(currentStatusFilter);
   });
+});
+
+window.addEventListener("popstate", async () => {
+  const status = new URLSearchParams(window.location.search).get("status");
+  const nextStatus = STATUS_LABELS[status] ? status : "OPEN";
+  setActiveStatusFilter(nextStatus, null);
+  await loadStatusCounts();
+  await loadTickets(currentStatusFilter);
 });
 
 async function loadTickets(status) {
@@ -941,6 +963,12 @@ updateForm.addEventListener("submit", async (e) => {
       updatedAt: serverTimestamp(),
       latestPhotos: photoUrls
     };
+
+    if (newStatus === "CLOSED") {
+      payload.closedAt = serverTimestamp();
+      payload.closedDate = selectedUpdateDate;
+      payload.closedTime = selectedUpdateTime;
+    }
 
     await updateDoc(doc(db, "tickets", selectedTicket.id), payload);
 

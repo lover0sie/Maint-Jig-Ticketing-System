@@ -25,33 +25,84 @@ const WORKING_DAYS_PER_MONTH = 22;
 const MONTHLY_OPERATING_HOURS =
   OPERATING_HOURS_PER_DAY * WORKING_DAYS_PER_MONTH;
 
+const ANALYTICS_YEAR = 2026;
+
 const YEARLY_OPERATING_HOURS =
   MONTHLY_OPERATING_HOURS * 12;
 
-const MTTR_COLOR = "#f97316";
-const MTBF_COLOR = "#2563eb";
+const TARGET_START = new Date("2026-05-01T00:00:00+08:00");
+const TARGET_END = new Date("2026-07-16T00:00:00+08:00");
+const YEAR_OPTIONS_START = new Date().getFullYear();
+const YEAR_OPTIONS_COUNT = 6;
+
+const ACTUAL_COLOR = "#eab308";
+const MTTR_TARGET_COLOR = "#7c3aed";
+const MTBF_TARGET_COLOR = "#2f55e7";
+const TARGET_LINE_COLOR = "#ef4444";
 
 const barValueLabelPlugin = {
   id: "barValueLabel",
   afterDatasetsDraw(chart) {
     const { ctx, chartArea } = chart;
+    const placedLabels = [];
+
+    function labelsOverlap(a, b) {
+      return !(
+        a.right < b.left ||
+        a.left > b.right ||
+        a.bottom < b.top ||
+        a.top > b.bottom
+      );
+    }
 
     ctx.save();
-    ctx.font = "700 11px Inter, Segoe UI, sans-serif";
+    ctx.font = "700 10px Inter, Segoe UI, sans-serif";
     ctx.fillStyle = "#374151";
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
 
     chart.data.datasets.forEach((dataset, datasetIndex) => {
+      if (!chart.isDatasetVisible(datasetIndex)) return;
+      if (dataset.type === "line") return;
+
       const meta = chart.getDatasetMeta(datasetIndex);
 
       meta.data.forEach((bar, index) => {
         const value = dataset.data[index];
         if (value === null || value === undefined || Number.isNaN(value)) return;
 
-        const label = `${value}h`;
-        const labelY = Math.max(chartArea.top + 14, bar.y - 8);
+        const labelValue = Number(value).toFixed(2);
+        const label = labelValue;
+        const textWidth = ctx.measureText(label).width;
+        const labelHeight = 12;
+        let labelY = Math.max(chartArea.top + labelHeight, bar.y - 8);
+        let labelRect = null;
+        let canPlaceLabel = false;
+
+        for (let attempts = 0; attempts < 8; attempts += 1) {
+          labelRect = {
+            left: bar.x - textWidth / 2 - 4,
+            right: bar.x + textWidth / 2 + 4,
+            top: labelY - labelHeight,
+            bottom: labelY + 2
+          };
+
+          const hasOverlap = placedLabels.some((placed) =>
+            labelsOverlap(labelRect, placed)
+          );
+
+          if (!hasOverlap) {
+            canPlaceLabel = true;
+            break;
+          }
+
+          labelY -= labelHeight + 3;
+        }
+
+        if (!canPlaceLabel || labelY < chartArea.top + labelHeight) return;
+
         ctx.fillText(label, bar.x, labelY);
+        placedLabels.push(labelRect);
       });
     });
 
@@ -122,8 +173,29 @@ const loadingOverlay = el("loadingOverlay");
 const loadingText = el("loadingText");
 const mttrEmpty = el("mttrEmpty");
 const mtbfEmpty = el("mtbfEmpty");
+const analyticsViewMode = el("analyticsViewMode");
+const monthFilterGroup = el("monthFilterGroup");
 const monthFilter = el("monthFilter");
+const machineFilterGroup = el("machineFilterGroup");
+const machineFilter = el("machineFilter");
+const yearFilterGroup = el("yearFilterGroup");
+const yearFilter = el("yearFilter");
 const exportExcelBtn = el("exportExcelBtn");
+
+const MONTH_LABELS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec"
+];
 
 function toDateFromUpdate(updateDate, updateTime) {
   if (!updateDate || !updateTime) return null;
@@ -246,11 +318,79 @@ function getLocalMonthKey(date) {
   return `${year}-${month}`;
 }
 
-function buildGradient(ctx, color) {
-  const gradient = ctx.createLinearGradient(0, 0, 0, 320);
-  gradient.addColorStop(0, color);
-  gradient.addColorStop(1, `${color}99`);
-  return gradient;
+function createEmptySummaryMap() {
+  const summaryMap = {};
+
+  MACHINES.forEach(([id]) => {
+    summaryMap[id] = {
+      count: 0,
+      totalMs: 0
+    };
+  });
+
+  return summaryMap;
+}
+
+function createEmptyMonthlySummaries() {
+  return MONTH_LABELS.map(() => ({
+    count: 0,
+    totalMs: 0
+  }));
+}
+
+function addBreakdownSummary(summaryMap, machineId, breakdownMs) {
+  if (!summaryMap[machineId]) {
+    summaryMap[machineId] = { count: 0, totalMs: 0 };
+  }
+
+  summaryMap[machineId].count += 1;
+  summaryMap[machineId].totalMs += breakdownMs;
+}
+
+function addMonthlySummary(monthlySummaries, date, breakdownMs, selectedYear) {
+  if (date.getFullYear() !== selectedYear) return;
+
+  const monthIndex = date.getMonth();
+  monthlySummaries[monthIndex].count += 1;
+  monthlySummaries[monthIndex].totalMs += breakdownMs;
+}
+
+function isInYearTargetRange(date, selectedYear) {
+  const targetStart = new Date(`${selectedYear}-05-01T00:00:00+08:00`);
+  const targetEnd = new Date(`${selectedYear}-07-16T00:00:00+08:00`);
+
+  return date >= targetStart && date < targetEnd;
+}
+
+function populateMachineFilter() {
+  if (!machineFilter) return;
+
+  machineFilter.innerHTML = MACHINES
+    .map(([id, name, location]) => `<option value="${id}">${name} (${location})</option>`)
+    .join("");
+}
+
+function populateYearFilter() {
+  if (!yearFilter) return;
+
+  yearFilter.innerHTML = Array.from({ length: YEAR_OPTIONS_COUNT }, (_, index) => {
+    const year = YEAR_OPTIONS_START - index;
+    return `<option value="${year}">${year}</option>`;
+  }).join("");
+
+  yearFilter.value = String(ANALYTICS_YEAR);
+}
+
+function updateAnalyticsViewControls() {
+  const isMachineView = analyticsViewMode?.value === "machine";
+
+  if (monthFilterGroup) monthFilterGroup.classList.toggle("hidden", isMachineView);
+  if (machineFilterGroup) machineFilterGroup.classList.toggle("hidden", !isMachineView);
+  if (yearFilterGroup) yearFilterGroup.classList.toggle("hidden", !isMachineView);
+}
+
+function isInTargetRange(date) {
+  return date >= TARGET_START && date < TARGET_END;
 }
 
 function setChartEmptyState(canvasId, emptyEl, isEmpty) {
@@ -268,8 +408,25 @@ function getSharedChartOptions(unitLabel, tooltipLabel) {
       easing: "easeOutQuart"
     },
     plugins: {
+      barValueLabel: {
+        unitLabel
+      },
       legend: {
-        display: false
+        display: true,
+        position: "top",
+        align: "start",
+        labels: {
+          boxWidth: 14,
+          boxHeight: 14,
+          color: "#6b7280",
+          padding: 18,
+          usePointStyle: true,
+          pointStyle: "rectRounded",
+          font: {
+            size: 13,
+            weight: "400"
+          }
+        }
       },
       tooltip: {
         backgroundColor: "#111827",
@@ -286,36 +443,53 @@ function getSharedChartOptions(unitLabel, tooltipLabel) {
     },
     scales: {
       x: {
+        border: {
+          display: true,
+          color: "#cbd5e1"
+        },
         grid: {
           display: false
         },
         ticks: {
-          color: "#374151",
-          maxRotation: 55,
+          color: "#020617",
+          autoSkip: false,
+          maxRotation: 45,
           minRotation: 35,
+          padding: 8,
+          callback(value) {
+            return this.getLabelForValue(value);
+          },
           font: {
-            weight: "600"
+            size: 12,
+            weight: "500"
           }
         }
       },
       y: {
         beginAtZero: true,
         grace: "12%",
+        border: {
+          display: false
+        },
         grid: {
-          color: "#e5e7eb"
+          color: "#dbe3ef",
+          drawTicks: false
         },
         ticks: {
-          color: "#6b7280",
+          color: "#64748b",
+          padding: 14,
+          maxTicksLimit: 8,
           callback(value) {
-            return `${value}h`;
+            return `${Number(value).toFixed(2)}${unitLabel}`;
           }
         },
         title: {
           display: true,
-          text: "Hours",
-          color: "#374151",
+          text: "DURATION (HOURS)",
+          color: "#475569",
           font: {
-            weight: "700"
+            size: 12,
+            weight: "800"
           }
         }
       }
@@ -327,33 +501,31 @@ async function loadAnalytics() {
   showLoading("Loading analytics...");
 
   try {
+    const viewMode = analyticsViewMode?.value || "month";
     const selectedMonth = el("monthFilter").value; // yyyy-mm
-    const summaryMap = {};
-
-    MACHINES.forEach(([id]) => {
-      summaryMap[id] = {
-        count: 0,
-        totalMs: 0
-      };
-    });
+    const selectedMachineId = machineFilter?.value || MACHINES[0][0];
+    const selectedYear = Number(yearFilter?.value || ANALYTICS_YEAR);
+    const actualSummaryMap = createEmptySummaryMap();
+    const targetSummaryMap = createEmptySummaryMap();
+    const machineMonthlySummaries = createEmptyMonthlySummaries();
 
     const ticketSnap = await getDocs(
       query(collection(db, "tickets"), orderBy("createdAt", "desc"))
     );
 
-    for (const ticketDoc of ticketSnap.docs) {
+    const closedTickets = await Promise.all(ticketSnap.docs.map(async (ticketDoc) => {
       const ticket = {
         id: ticketDoc.id,
         ...ticketDoc.data()
       };
 
-      if (ticket.status !== "CLOSED") continue;
-      if (!ticket.createdAt?.toDate) continue;
+      if (ticket.status !== "CLOSED") return null;
+      if (!ticket.createdAt?.toDate) return null;
 
       const openedAt = ticket.createdAt.toDate();
       const machineId = ticket.machine?.id;
 
-      if (!machineId) continue;
+      if (!machineId) return null;
 
       const updateSnap = await getDocs(
         query(collection(db, "tickets", ticket.id, "updates"), orderBy("createdAt", "asc"))
@@ -372,25 +544,52 @@ async function loadAnalytics() {
         }
       });
 
-      if (!closedAt) continue;
-
-      if (selectedMonth) {
-        const closedMonth = getLocalMonthKey(closedAt);
-        if (closedMonth !== selectedMonth) continue;
-      }
+      if (!closedAt) return null;
 
       const breakdownMs = closedAt - openedAt;
-      if (breakdownMs <= 0) continue;
+      if (breakdownMs <= 0) return null;
 
-      if (!summaryMap[machineId]) {
-        summaryMap[machineId] = { count: 0, totalMs: 0 };
+      return {
+        machineId,
+        closedAt,
+        breakdownMs
+      };
+    }));
+
+    closedTickets.forEach((ticket) => {
+      if (!ticket) return;
+
+      const { machineId, closedAt, breakdownMs } = ticket;
+
+      if (viewMode === "machine") {
+        if (machineId === selectedMachineId) {
+          addMonthlySummary(machineMonthlySummaries, closedAt, breakdownMs, selectedYear);
+
+          if (isInYearTargetRange(closedAt, selectedYear)) {
+            addBreakdownSummary(targetSummaryMap, machineId, breakdownMs);
+          }
+        }
+      } else {
+        if (!selectedMonth || getLocalMonthKey(closedAt) === selectedMonth) {
+          addBreakdownSummary(actualSummaryMap, machineId, breakdownMs);
+        }
+
+        if (isInTargetRange(closedAt)) {
+          addBreakdownSummary(targetSummaryMap, machineId, breakdownMs);
+        }
       }
+    });
 
-      summaryMap[machineId].count += 1;
-      summaryMap[machineId].totalMs += breakdownMs;
+    if (viewMode === "machine") {
+      renderMachineYearCharts(
+        machineMonthlySummaries,
+        selectedMachineId,
+        targetSummaryMap[selectedMachineId],
+        selectedYear
+      );
+    } else {
+      renderReliabilityCharts(actualSummaryMap, targetSummaryMap);
     }
-
-    renderReliabilityCharts(summaryMap);
   } catch (err) {
     console.error(err);
     showAlert(`Could not load analytics: ${err.message}`, "err");
@@ -399,43 +598,33 @@ async function loadAnalytics() {
   }
 }
 
-function renderReliabilityCharts(summaryMap) {
+function getMttrHours(data) {
+  if (!data || !data.count) return null;
+  return Number(((data.totalMs / data.count) / 1000 / 60 / 60).toFixed(2));
+}
 
-  const labels = [];
-  const mttrValues = [];
-  const mtbfValues = [];
-  const ticketCounts = [];
+function getMtbfHours(data) {
+  if (!data || !data.count) return null;
+  return Number((MONTHLY_OPERATING_HOURS / data.count).toFixed(2));
+}
 
-  MACHINES.forEach(([id, name]) => {
+function renderMachineYearCharts(monthlySummaries, selectedMachineId, targetSummary, selectedYear) {
+  const machineName =
+    MACHINES.find(([id]) => id === selectedMachineId)?.[1] || "Selected machine";
+  const mttrValues = monthlySummaries.map(getMttrHours);
+  const mtbfValues = monthlySummaries.map(getMtbfHours);
+  const targetMttr = getMttrHours(targetSummary);
+  const targetMtbf = getMtbfHours(targetSummary);
+  const targetMttrValues = MONTH_LABELS.map(() => targetMttr);
+  const targetMtbfValues = MONTH_LABELS.map(() => targetMtbf);
+  const ticketCounts = monthlySummaries.map((summary) => summary.count);
 
-    const data = summaryMap[id];
-
-    if (!data || !data.count) return;
-
-    const mttrHours =
-      (data.totalMs / data.count) / 1000 / 60 / 60;
-
-    const mtbfHours =
-      MONTHLY_OPERATING_HOURS / data.count;
-
-    labels.push(name);
-
-    mttrValues.push(
-      Number(mttrHours.toFixed(2))
-    );
-
-    mtbfValues.push(
-      Number(mtbfHours.toFixed(2))
-    );
-
-    ticketCounts.push(data.count);
-  });
-
-  // Destroy old charts
   if (mttrChart) mttrChart.destroy();
   if (mtbfChart) mtbfChart.destroy();
 
-  const hasData = labels.length > 0;
+  const hasData = ticketCounts.some((count) => count > 0);
+  if (mttrEmpty) mttrEmpty.textContent = `No MTTR data for ${machineName} in ${selectedYear}.`;
+  if (mtbfEmpty) mtbfEmpty.textContent = `No MTBF data for ${machineName} in ${selectedYear}.`;
   setChartEmptyState("mttrChart", mttrEmpty, !hasData);
   setChartEmptyState("mtbfChart", mtbfEmpty, !hasData);
 
@@ -445,13 +634,172 @@ function renderReliabilityCharts(summaryMap) {
     return;
   }
 
-  el("mttrChart").parentElement.style.height = "420px";
-  el("mtbfChart").parentElement.style.height = "420px";
+  el("mttrChart").parentElement.style.height = "560px";
+  el("mtbfChart").parentElement.style.height = "560px";
 
-  const mttrCtx = el("mttrChart").getContext("2d");
-  const mtbfCtx = el("mtbfChart").getContext("2d");
-  const mttrColor = buildGradient(mttrCtx, MTTR_COLOR);
-  const mtbfColor = buildGradient(mtbfCtx, MTBF_COLOR);
+  const mttrOptions = getSharedChartOptions("h", "Average repair time");
+  const mtbfOptions = getSharedChartOptions("h", "Estimated time between failures");
+
+  mttrChart = new Chart(el("mttrChart"), {
+    type: "bar",
+    plugins: [barValueLabelPlugin],
+    data: {
+      labels: MONTH_LABELS,
+      datasets: [
+        {
+        label: `${machineName} MTTR (${selectedYear})`,
+          data: mttrValues,
+          backgroundColor: ACTUAL_COLOR,
+          borderColor: ACTUAL_COLOR,
+          borderWidth: 0,
+          borderRadius: 0,
+          borderSkipped: false,
+          categoryPercentage: 0.42,
+          barPercentage: 1,
+          minBarLength: 7
+        },
+        {
+          type: "line",
+          label: `Target MTTR (May-Jul ${selectedYear})`,
+          data: targetMttrValues,
+          borderColor: TARGET_LINE_COLOR,
+          backgroundColor: TARGET_LINE_COLOR,
+          borderDash: [6, 5],
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          fill: false,
+          tension: 0
+        }
+      ]
+    },
+    options: {
+      ...mttrOptions,
+      plugins: {
+        ...mttrOptions.plugins,
+        tooltip: {
+          ...mttrOptions.plugins.tooltip,
+          callbacks: {
+            label(context) {
+              if (context.dataset.type === "line") {
+                return `Target MTTR: ${context.parsed.y.toFixed(2)}h`;
+              }
+
+              const count = ticketCounts[context.dataIndex];
+              return [
+                `MTTR: ${context.parsed.y.toFixed(2)}h`,
+                `Closed tickets: ${count}`
+              ];
+            }
+          }
+        }
+      }
+    }
+  });
+
+  mtbfChart = new Chart(el("mtbfChart"), {
+    type: "bar",
+    plugins: [barValueLabelPlugin],
+    data: {
+      labels: MONTH_LABELS,
+      datasets: [
+        {
+        label: `${machineName} MTBF (${selectedYear})`,
+          data: mtbfValues,
+          backgroundColor: ACTUAL_COLOR,
+          borderColor: ACTUAL_COLOR,
+          borderWidth: 0,
+          borderRadius: 0,
+          borderSkipped: false,
+          categoryPercentage: 0.42,
+          barPercentage: 1,
+          minBarLength: 7
+        },
+        {
+          type: "line",
+          label: `Target MTBF (May-Jul ${selectedYear})`,
+          data: targetMtbfValues,
+          borderColor: TARGET_LINE_COLOR,
+          backgroundColor: TARGET_LINE_COLOR,
+          borderDash: [6, 5],
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          fill: false,
+          tension: 0
+        }
+      ]
+    },
+    options: {
+      ...mtbfOptions,
+      plugins: {
+        ...mtbfOptions.plugins,
+        tooltip: {
+          ...mtbfOptions.plugins.tooltip,
+          callbacks: {
+            label(context) {
+              if (context.dataset.type === "line") {
+                return `Target MTBF: ${context.parsed.y.toFixed(2)}h`;
+              }
+
+              const count = ticketCounts[context.dataIndex];
+              return [
+                `MTBF: ${context.parsed.y.toFixed(2)}h`,
+                `Failures: ${count}`
+              ];
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderReliabilityCharts(actualSummaryMap, targetSummaryMap) {
+
+  const labels = [];
+  const actualMttrValues = [];
+  const targetMttrValues = [];
+  const actualMtbfValues = [];
+  const targetMtbfValues = [];
+  const actualTicketCounts = [];
+  const targetTicketCounts = [];
+
+  MACHINES.forEach(([id, name]) => {
+
+    const actualData = actualSummaryMap[id];
+    const targetData = targetSummaryMap[id];
+
+    if (!actualData || !actualData.count) return;
+
+    labels.push(name);
+
+    actualMttrValues.push(getMttrHours(actualData));
+    targetMttrValues.push(getMttrHours(targetData));
+    actualMtbfValues.push(getMtbfHours(actualData));
+    targetMtbfValues.push(getMtbfHours(targetData));
+    actualTicketCounts.push(actualData?.count || 0);
+    targetTicketCounts.push(targetData?.count || 0);
+  });
+
+  // Destroy old charts
+  if (mttrChart) mttrChart.destroy();
+  if (mtbfChart) mtbfChart.destroy();
+
+  const hasData = labels.length > 0;
+  if (mttrEmpty) mttrEmpty.textContent = "No MTTR data for this month.";
+  if (mtbfEmpty) mtbfEmpty.textContent = "No MTBF data for this month.";
+  setChartEmptyState("mttrChart", mttrEmpty, !hasData);
+  setChartEmptyState("mtbfChart", mtbfEmpty, !hasData);
+
+  if (!hasData) {
+    el("mttrChart").parentElement.style.height = "320px";
+    el("mtbfChart").parentElement.style.height = "320px";
+    return;
+  }
+
+  el("mttrChart").parentElement.style.height = "560px";
+  el("mtbfChart").parentElement.style.height = "560px";
 
   // MTTR
   const mttrOptions = getSharedChartOptions("h", "Average repair time");
@@ -462,16 +810,32 @@ function renderReliabilityCharts(summaryMap) {
     plugins: [barValueLabelPlugin],
     data: {
       labels,
-      datasets: [{
-        label: "MTTR (Hours)",
-        data: mttrValues,
-        backgroundColor: mttrColor,
-        borderColor: MTTR_COLOR,
-        borderWidth: 1,
-        borderRadius: 8,
-        borderSkipped: false,
-        maxBarThickness: 34
-      }]
+      datasets: [
+        {
+          label: "Target MTTR (May-Jul 2026)",
+          data: targetMttrValues,
+          backgroundColor: MTTR_TARGET_COLOR,
+          borderColor: MTTR_TARGET_COLOR,
+          borderWidth: 0,
+          borderRadius: 0,
+          borderSkipped: false,
+          categoryPercentage: 0.42,
+          barPercentage: 1,
+          minBarLength: 7
+        },
+        {
+          label: "Actual MTTR",
+          data: actualMttrValues,
+          backgroundColor: ACTUAL_COLOR,
+          borderColor: ACTUAL_COLOR,
+          borderWidth: 0,
+          borderRadius: 0,
+          borderSkipped: false,
+          categoryPercentage: 0.42,
+          barPercentage: 1,
+          minBarLength: 7
+        }
+      ]
     },
     options: {
       ...mttrOptions,
@@ -481,9 +845,13 @@ function renderReliabilityCharts(summaryMap) {
           ...mttrOptions.plugins.tooltip,
           callbacks: {
             label(context) {
-              const count = ticketCounts[context.dataIndex];
+              const isTarget = context.datasetIndex === 0;
+              const count = isTarget
+                ? targetTicketCounts[context.dataIndex]
+                : actualTicketCounts[context.dataIndex];
+              const label = isTarget ? "Target repair time" : "Actual repair time";
               return [
-                `Average repair time: ${context.parsed.y}h`,
+                `${label}: ${context.parsed.y.toFixed(2)}h`,
                 `Closed tickets: ${count}`
               ];
             }
@@ -499,16 +867,32 @@ function renderReliabilityCharts(summaryMap) {
     plugins: [barValueLabelPlugin],
     data: {
       labels,
-      datasets: [{
-        label: "MTBF (Hours)",
-        data: mtbfValues,
-        backgroundColor: mtbfColor,
-        borderColor: MTBF_COLOR,
-        borderWidth: 1,
-        borderRadius: 8,
-        borderSkipped: false,
-        maxBarThickness: 34
-      }]
+      datasets: [
+        {
+          label: "Target MTBF (May-Jul 2026)",
+          data: targetMtbfValues,
+          backgroundColor: MTBF_TARGET_COLOR,
+          borderColor: MTBF_TARGET_COLOR,
+          borderWidth: 0,
+          borderRadius: 0,
+          borderSkipped: false,
+          categoryPercentage: 0.42,
+          barPercentage: 1,
+          minBarLength: 7
+        },
+        {
+          label: "Actual MTBF",
+          data: actualMtbfValues,
+          backgroundColor: ACTUAL_COLOR,
+          borderColor: ACTUAL_COLOR,
+          borderWidth: 0,
+          borderRadius: 0,
+          borderSkipped: false,
+          categoryPercentage: 0.42,
+          barPercentage: 1,
+          minBarLength: 7
+        }
+      ]
     },
     options: {
       ...mtbfOptions,
@@ -518,9 +902,13 @@ function renderReliabilityCharts(summaryMap) {
           ...mtbfOptions.plugins.tooltip,
           callbacks: {
             label(context) {
-              const count = ticketCounts[context.dataIndex];
+              const isTarget = context.datasetIndex === 0;
+              const count = isTarget
+                ? targetTicketCounts[context.dataIndex]
+                : actualTicketCounts[context.dataIndex];
+              const label = isTarget ? "Target MTBF" : "Actual MTBF";
               return [
-                `Estimated MTBF: ${context.parsed.y}h`,
+                `${label}: ${context.parsed.y.toFixed(2)}h`,
                 `Failures: ${count}`
               ];
             }
@@ -701,6 +1089,25 @@ exportExcelBtn.addEventListener("click", exportMonthlyMttrMtbf);
 el("loadAnalyticsBtn").addEventListener("click", loadAnalytics);
 
 el("monthFilter").addEventListener("change", loadAnalytics);
+
+if (analyticsViewMode) {
+  analyticsViewMode.addEventListener("change", () => {
+    updateAnalyticsViewControls();
+    loadAnalytics();
+  });
+}
+
+if (machineFilter) {
+  machineFilter.addEventListener("change", loadAnalytics);
+}
+
+if (yearFilter) {
+  yearFilter.addEventListener("change", loadAnalytics);
+}
+
+populateMachineFilter();
+populateYearFilter();
+updateAnalyticsViewControls();
 
 el("monthFilter").value = getLocalMonthKey(new Date());
 

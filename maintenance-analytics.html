@@ -6,7 +6,7 @@
   <title>Maintenance Data Analytics</title>
   <link rel="stylesheet" href="css/maintenance-dashboard.css" />
 </head>
-<body>
+<body class="analytics-page">
   <button id="menuToggle" class="menu-toggle" type="button" aria-label="Open menu" aria-expanded="false">
     <span></span>
     <span></span>
@@ -85,8 +85,26 @@
 
     <div class="filter-row">
       <div class="filter-group">
+        <label for="analyticsViewMode">View By</label>
+        <select id="analyticsViewMode">
+          <option value="month">Month</option>
+          <option value="machine">Machine</option>
+        </select>
+      </div>
+
+      <div class="filter-group" id="monthFilterGroup">
         <label for="monthFilter">Month</label>
         <input type="month" id="monthFilter" />
+      </div>
+
+      <div class="filter-group hidden" id="machineFilterGroup">
+        <label for="machineFilter">Machine</label>
+        <select id="machineFilter"></select>
+      </div>
+
+      <div class="filter-group hidden" id="yearFilterGroup">
+        <label for="yearFilter">Year</label>
+        <select id="yearFilter"></select>
       </div>
 
       <div class="filter-actions analytics-filter-actions">

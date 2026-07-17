@@ -280,6 +280,10 @@ body.modal-open{
   min-width:180px;
 }
 
+.filter-group.hidden{
+  display:none;
+}
+
 .search-group{
   flex:1 1 280px;
 }
@@ -1602,12 +1606,19 @@ input[type="time"]:focus{
   margin-bottom: 16px;
 }
 
+.analytics-page .page{
+  max-width: 1180px;
+  width:100%;
+}
+
 .analytics-card {
   background: #fff;
-  border-radius: 18px;
-  padding: 20px;
-  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
-  margin-bottom: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 20px 24px 24px;
+  box-shadow: none;
+  margin-bottom: 18px;
+  overflow-x:visible;
 }
 
 .analytics-card h2 {
@@ -1635,7 +1646,10 @@ input[type="time"]:focus{
 
 .analytics-chart-wrap{
   position:relative;
-  min-height:320px;
+  min-height:420px;
+  min-width:0;
+  width:100%;
+  background:#fff;
 }
 
 .analytics-chart-wrap canvas{
@@ -1920,6 +1934,7 @@ input[type="time"]:focus{
 
   .analytics-card {
     overflow-x: auto;
+    padding:18px 18px 22px;
   }
 
   .analytics-card-head{
@@ -1928,6 +1943,6 @@ input[type="time"]:focus{
 
   .analytics-chart-wrap{
     min-height:280px;
-    min-width:520px;
+    min-width:960px;
   }
 }

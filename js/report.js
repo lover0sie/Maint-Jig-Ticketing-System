@@ -1,5 +1,24 @@
 // debug
-console.log("report.js loaded once check:", location.href);
+const REPORT_APP_VERSION = "2026.09.11.2";
+const REPORT_VERSION_KEY = "maintJigFaultReportVersion";
+
+try {
+  const savedVersion = localStorage.getItem(REPORT_VERSION_KEY);
+
+  if (savedVersion && savedVersion !== REPORT_APP_VERSION) {
+    localStorage.setItem(REPORT_VERSION_KEY, REPORT_APP_VERSION);
+
+    const freshUrl = new URL(location.href);
+    freshUrl.searchParams.set("_appv", REPORT_APP_VERSION);
+    location.replace(freshUrl.toString());
+  } else {
+    localStorage.setItem(REPORT_VERSION_KEY, REPORT_APP_VERSION);
+  }
+} catch (versionErr) {
+  console.warn("Version check skipped:", versionErr);
+}
+
+console.log("report.js loaded once check:", location.href, "version:", REPORT_APP_VERSION);
 
 // ------------- Firebase SDK (Firestore) -------------
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
@@ -288,23 +307,6 @@ console.log("report.js loaded once check:", location.href);
 
        showAlert(`Successfully submitted. Ticket created: ${ticketId}`, "ok");
 
-      // Telegram optional
-      try {
-        await sendTelegram({
-          ticketId,
-          machineId,
-          machineName,
-          location: locationName,
-          employeeName,
-          problemDescription,
-          photoUrls
-        });
-      } catch (tgErr) {
-        console.warn("Telegram failed:", tgErr);
-        // keep success, optionally warn:
-        // showAlert(`Ticket created: ${ticketId} (Telegram failed)`, "warn");
-      }
-
       // optional clear before replace
       el("problemDescription").value = "";
       el("faultImage").value = "";
@@ -328,7 +330,7 @@ console.log("report.js loaded once check:", location.href);
 
 // ------------- Telegram (TEST ONLY) -------------
 /* async function sendTelegram({ ticketId, machineId, machineName, location, employeeName, problemDescription }) {
-  const BOT_TOKEN = "8241324978:AAGL8f_LqUmXPtwrmxSB2v6rKx0Tuv6jVl0"; // <-- replace after revoking old
+  const BOT_TOKEN = "";
   const CHAT_ID = "-5223901778";
 
   const message =
@@ -361,7 +363,7 @@ async function sendTelegram({
   photoUrls = []
 }) {
 
-  const BOT_TOKEN = "8241324978:AAEj3v-dqSydogRQ31eDwN8ElI87xYRtsas"; // <-- replace after revoking old
+  const BOT_TOKEN = "";
   const CHAT_ID = "-5223901778";
 
   const caption =
